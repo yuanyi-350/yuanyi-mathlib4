@@ -97,6 +97,9 @@ lean_lib Counterexamples where
 lean_lib docs where
   roots := #[`docs]
 
+lean_lib vanKampen where
+  roots := #[`vanKampen]
+
 /-!
 ## Executables provided by Mathlib
 -/
