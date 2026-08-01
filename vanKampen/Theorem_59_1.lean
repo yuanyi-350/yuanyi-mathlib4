@@ -1,8 +1,8 @@
 module
 
-public import vanKampen.Lemma_55_1.Inclusions
+public import vanKampen.Inclusions
 public import vanKampen.Theorem_51_3
-import all vanKampen.Lemma_55_1.Inclusions
+import all vanKampen.Inclusions
 
 public section
 
@@ -503,7 +503,6 @@ theorem fundamentalGroupMap_range_sup_range_eq_top {X : Type u} [TopologicalSpac
   intro g _
   obtain ⟨f, rfl⟩ :=
     Path.Homotopic.Quotient.mk_surjective (FundamentalGroup.toPath g)
-  classical
   -- Pull the two open cover members back along the loop.
   let c : Bool → Set unitInterval := fun
     | false => f ⁻¹' U
@@ -553,10 +552,8 @@ theorem fundamentalGroupMap_range_sup_range_eq_top {X : Type u} [TopologicalSpac
       apply hside i
       exact hs
     cases hchoice : side i
-    · simpa only [c, hchoice, Bool.false_eq_true, if_false,
-        Set.mem_preimage] using hsCover
-    · simpa only [c, hchoice, Bool.true_eq, if_true,
-        Set.mem_preimage] using hsCover
+    · simpa [c, hchoice] using hsCover
+    · simpa [c, hchoice] using hsCover
   -- The subdivision lemma converts those local range containments into generation.
   exact loopClassMemSupRangesOfSubdivision U V x₀ hx₀ f n a
     haStart haEnd side hsubpath

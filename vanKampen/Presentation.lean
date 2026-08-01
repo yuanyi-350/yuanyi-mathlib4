@@ -108,8 +108,3 @@ theorem vanKampenRelation_mem_ker {X : Type u} [TopologicalSpace X]
   rw [hleftValue, hrightValue, inv_mul_cancel]
 
 end FundamentalGroup
-
-#print axioms FundamentalGroup.vanKampenMap
-#print axioms FundamentalGroup.vanKampenRelation
-#print axioms FundamentalGroup.vanKampenRelations
-#print axioms FundamentalGroup.vanKampenNormalClosure

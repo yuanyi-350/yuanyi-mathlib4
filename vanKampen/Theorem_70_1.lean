@@ -8,7 +8,7 @@ public import Mathlib.CategoryTheory.SingleObj
 public import Mathlib.AlgebraicTopology.FundamentalGroupoid.InducedMaps
 import all vanKampen.Theorem_70_1.FiniteSubdivision
 import vanKampen.Theorem_70_1.HomotopyGrid
-import all vanKampen.Lemma_55_1.Inclusions
+import all vanKampen.Inclusions
 
 public section
 

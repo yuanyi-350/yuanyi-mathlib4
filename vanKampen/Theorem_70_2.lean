@@ -1,8 +1,8 @@
 module
 
 import vanKampen.Theorem_70_1
-public import vanKampen.Theorem_70_2.Presentation
-import all vanKampen.Theorem_70_2.Presentation
+public import vanKampen.Presentation
+import all vanKampen.Presentation
 import Mathlib.GroupTheory.QuotientGroup.Defs
 
 public section
