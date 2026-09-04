@@ -21,22 +21,6 @@ open TopologicalSpace
 
 universe u
 
-/- Definition 50.8 (1). `HasSmallInductiveDimensionLT` is the inductively defined strict small
-inductive dimension bound; at `0`, it is the empty-space base case corresponding to dimension
-`-1`. -/
-#check HasSmallInductiveDimensionLT
-
-/- Definition 50.8 (2). `HasSmallInductiveDimensionLE X n` represents small inductive dimension
-at most `n` by abbreviating the strict bound `< n + 1`. -/
-#check HasSmallInductiveDimensionLE
-
-/- Definition 50.8 (3). The least small inductive dimension value is `smallInductiveDimension X`,
-with `⊥` representing dimension `-1`. -/
-#check smallInductiveDimension
-
--- Route correction: instead of unfolding covering dimension inside the two basis bridges, isolate
--- the finite closed-union invariant and the two directions of the local frontier characterization.
-
 /-- Helper for Definition 50.8: a covering-dimension bound separates a closed set from the
 complement of an open neighborhood by an open set with lower-dimensional frontier. -/
 lemma exists_open_between_frontier_of_hasCoveringDimensionLE
@@ -113,7 +97,7 @@ lemma existsFiniteIndexedShrinkingOfOpenCover
     (fun U : 𝒜 ↦ U.1) (fun U ↦ h𝒜open U.1 U.2) hsubcover
   -- Index the selected members and remember their tautological parents in the input cover.
   let ι := {U : 𝒜 // U ∈ t}
-  letI : Finite ι := Finite.of_fintype ι
+  let _ : Finite ι := Finite.of_fintype ι
   let B : ι → Opens X := fun i ↦ ⟨i.1.1, h𝒜open i.1.1 i.1.2⟩
   let p : ι → 𝒜 := fun i ↦ i.1
   have hBcover : IsOpenCover B := by
@@ -197,7 +181,7 @@ lemma existsPairwiseDisjointOpenCores
       Pairwise (fun i j ↦ Disjoint (D i) (D j)) ∧
       (⋃ i, frontier (V i : Set X))ᶜ ⊆ ⋃ i, D i := by
   classical
-  letI : Fintype ι := Fintype.ofFinite ι
+  let _ : Fintype ι := Fintype.ofFinite ι
   let e : ι ≃ Fin (Fintype.card ι) := Fintype.equivFin ι
   let W : Fin (Fintype.card ι) → Opens X := fun j ↦ V (e.symm j)
   have hWcover : IsOpenCover W := by
@@ -281,7 +265,7 @@ lemma hasCoveringDimensionLE_of_openPartitions
   intro 𝒜 h𝒜open h𝒜cover
   obtain ⟨ι, hιfinite, B, C, p, hBcover, hCcover, hBp, hCclosure⟩ :=
     existsFiniteIndexedShrinkingOfOpenCover 𝒜 h𝒜open h𝒜cover
-  letI : Finite ι := hιfinite
+  let _ : Finite ι := hιfinite
   have hseparator (i : ι) :
       ∃ V : Set X,
         IsOpen V ∧ closure (C i : Set X) ⊆ V ∧ closure V ⊆ B i ∧
@@ -345,7 +329,7 @@ lemma hasCoveringDimensionLE_of_openPartitions
       -- Refine the traces of the original finite cover on the closed frontier locus, then swell
       -- its closed shrinking back into the ambient space without changing its nerve.
       let 𝒜L : Set (Set L) := Set.range fun i ↦ Subtype.val ⁻¹' (B i : Set X)
-      letI : CompactSpace L := isCompact_iff_compactSpace.mp hLclosed.isCompact
+      let _ : CompactSpace L := isCompact_iff_compactSpace.mp hLclosed.isCompact
       have h𝒜Lopen : ∀ U ∈ 𝒜L, IsOpen U := by
         rintro U ⟨i, rfl⟩
         exact (B i).2.preimage continuous_subtype_val
@@ -361,7 +345,7 @@ lemma hasCoveringDimensionLE_of_openPartitions
       obtain ⟨κ, hκfinite, R, S, r, hRcover, hScover, hRorder, hRinjective,
           hRparent, hSclosure⟩ :=
         existsFiniteIndexedShrinkingRefinement hLdim 𝒜L h𝒜Lopen h𝒜Lcover
-      letI : Finite κ := hκfinite
+      let _ : Finite κ := hκfinite
       have hrindex (j : κ) : ∃ i : ι, (r j : Set L) = Subtype.val ⁻¹' (B i : Set X) :=
         by
           have hj := (r j).2
@@ -523,14 +507,14 @@ lemma hasSmallInductiveDimensionLT_iff_hasCoveringDimensionLT
         | succ _ s hs hfrontier =>
             apply hasCoveringDimensionLE_of_basis_frontier s hs
             intro U hU
-            letI : CompactSpace ↥(frontier U) :=
+            let _ : CompactSpace ↥(frontier U) :=
               isCompact_iff_compactSpace.mp isClosed_frontier.isCompact
             exact (ih ↥(frontier U)).mp (hfrontier U hU)
       · intro hcover
         obtain ⟨s, hs, hfrontier⟩ := exists_basis_frontier_of_hasCoveringDimensionLE hcover
         refine .succ n s hs ?_
         intro U hU
-        letI : CompactSpace ↥(frontier U) :=
+        let _ : CompactSpace ↥(frontier U) :=
           isCompact_iff_compactSpace.mp isClosed_frontier.isCompact
         exact (ih ↥(frontier U)).mpr (hfrontier U hU)
 

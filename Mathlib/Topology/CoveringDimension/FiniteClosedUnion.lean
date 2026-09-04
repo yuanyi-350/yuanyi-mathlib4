@@ -6,9 +6,7 @@ Authors: Yi Yuan
 module
 
 public import Mathlib.Topology.CoveringDimension.FiniteClosedCover
-public import Mathlib.Topology.CoveringDimension.Basic
 public import Mathlib.Topology.CoveringDimension.ClosedSubspace
-public import Mathlib.Topology.Homeomorph.Lemmas
 
 /-! # Covering dimension of finite closed unions -/
 
@@ -17,62 +15,6 @@ public section
 open Set
 
 universe u v
-
-/-- Helper for Definition 50.8: covering-dimension bounds are preserved by homeomorphisms. -/
-lemma HasCoveringDimensionLE.homeomorph
-    {X : Type u} {Y : Type v} [TopologicalSpace X] [TopologicalSpace Y]
-    (e : X ≃ₜ Y) {n : ℕ} (h : HasCoveringDimensionLE X n) :
-    HasCoveringDimensionLE Y n := by
-  -- Pull an arbitrary cover back to the source and push the controlled refinement forward.
-  rw [hasCoveringDimensionLE_iff_pointwise] at h ⊢
-  intro 𝒜 h𝒜open h𝒜cover
-  let 𝒜' : Set (Set X) := (fun U : Set Y ↦ e ⁻¹' U) '' 𝒜
-  have h𝒜'open : ∀ U ∈ 𝒜', IsOpen U := by
-    rintro U ⟨A, hA, rfl⟩
-    exact (h𝒜open A hA).preimage e.continuous
-  have h𝒜'cover : ⋃₀ 𝒜' = Set.univ := by
-    apply Set.eq_univ_of_forall
-    intro x
-    have hx : e x ∈ ⋃₀ 𝒜 := h𝒜cover.symm ▸ Set.mem_univ (e x)
-    rw [Set.mem_sUnion] at hx ⊢
-    obtain ⟨A, hA, hxA⟩ := hx
-    exact ⟨e ⁻¹' A, ⟨A, hA, rfl⟩, hxA⟩
-  obtain ⟨ℬ, hℬrefines, hℬcover, hℬorder⟩ := h 𝒜' h𝒜'open h𝒜'cover
-  let ℬ' : Set (Set Y) := (fun B : Set X ↦ e '' B) '' ℬ
-  refine ⟨ℬ', ?_, ?_, ?_⟩
-  · -- Images of the pulled-back parents give an open refinement of the original cover.
-    rw [isOpenRefinement_iff, isRefinement_iff]
-    constructor
-    · rintro V ⟨B, hB, rfl⟩
-      obtain ⟨A', hA', hBA⟩ := hℬrefines.subset_of_mem hB
-      obtain ⟨A, hA, rfl⟩ := hA'
-      refine ⟨A, hA, ?_⟩
-      rintro y ⟨x, hxB, rfl⟩
-      exact hBA hxB
-    · rintro V ⟨B, hB, rfl⟩
-      exact e.isOpen_image.mpr (hℬrefines.isOpen_of_mem hB)
-  · -- Surjectivity of the homeomorphism transports the covering property.
-    apply Set.eq_univ_of_forall
-    intro y
-    have hy : e.symm y ∈ ⋃₀ ℬ := hℬcover.symm ▸ Set.mem_univ (e.symm y)
-    rw [Set.mem_sUnion] at hy ⊢
-    obtain ⟨B, hB, hyB⟩ := hy
-    exact ⟨e '' B, ⟨B, hB, rfl⟩, ⟨e.symm y, hyB, e.apply_symm_apply y⟩⟩
-  · -- Containing members correspond bijectively, so point multiplicity is unchanged.
-    intro y
-    let S : Set (Set X) := {B ∈ ℬ | e.symm y ∈ B}
-    have hmembers : {V ∈ ℬ' | y ∈ V} = (fun B : Set X ↦ e '' B) '' S := by
-      ext V
-      constructor
-      · rintro ⟨⟨B, hB, rfl⟩, hyB⟩
-        obtain ⟨x, hxB, hxy⟩ := hyB
-        have hx : x = e.symm y := by
-          simpa using congrArg e.symm hxy
-        exact ⟨B, ⟨hB, hx ▸ hxB⟩, rfl⟩
-      · rintro ⟨B, ⟨hB, hyB⟩, rfl⟩
-        exact ⟨⟨B, hB, rfl⟩, ⟨e.symm y, hyB, e.apply_symm_apply y⟩⟩
-    rw [hmembers, e.injective.image_injective.encard_image]
-    exact hℬorder (e.symm y)
 
 /-- Helper for Definition 50.8: a finite closed cover inherits the common
 covering-dimension bound. -/
@@ -84,7 +26,7 @@ lemma HasCoveringDimensionLE.finite_iUnion_closed
     HasCoveringDimensionLE X n := by
   -- Convert the finite closed-union formula into numerical upper bounds.
   classical
-  letI : Fintype ι := Fintype.ofFinite ι
+  let _ : Fintype ι := Fintype.ofFinite ι
   rw [← coveringDimension_le_iff, coveringDimension_iUnion_closed Y hclosed hcover,
     Finset.sup_le_iff]
   intro i _
@@ -121,7 +63,7 @@ lemma HasCoveringDimensionLE.finiteUnionClosedSubtypes
       intro z
       refine ⟨⟨z.1.1, z.2⟩, ?_⟩
       exact Subtype.ext (Subtype.ext rfl)
-    exact (hdim i).homeomorph (hf.toHomeomorphOfSurjective hfsurj)
+    exact (hf.toHomeomorphOfSurjective hfsurj).hasCoveringDimensionLE_of (hdim i)
 
 /-- Helper for Definition 50.8: the strict covering-dimension bound is preserved by finite
 unions of closed subspaces. -/
@@ -169,4 +111,4 @@ lemma HasCoveringDimensionLT.closedSubset
         intro z
         refine ⟨⟨z.1.1, z.2⟩, ?_⟩
         exact Subtype.ext (Subtype.ext rfl)
-      exact hP.homeomorph (hf.toHomeomorphOfSurjective hfsurj).symm
+      exact (hf.toHomeomorphOfSurjective hfsurj).symm.hasCoveringDimensionLE_of hP

@@ -6,9 +6,10 @@ Authors: Yi Yuan
 module
 
 public import Mathlib.Topology.CoveringDimension.Basic
-public import Mathlib.Topology.CoveringDimension.PlaneCover
+public import Mathlib.Topology.CoveringDimension.LebesgueNumberLemma
 public import Mathlib.Analysis.InnerProductSpace.PiL2
 public import Mathlib.Data.Set.Card.Arithmetic
+public import Mathlib.Topology.MetricSpace.Isometry
 
 /-! # Covering dimension of compact Euclidean subspaces -/
 
@@ -357,8 +358,7 @@ lemma exists_subtypeEuclideanCover_order {N : ℕ}
     rw [Set.hasOrderLE_iff]
     intro x
     have hpullbackOrder : pullback.HasOrderLE (N + 1) := by
-      exact preimageFamily_hasOrderLE
-        ((↑) : X → EuclideanSpace ℝ (Fin N)) 𝒸 (N + 1) h𝒸order
+      exact h𝒸order.preimage ((↑) : X → EuclideanSpace ℝ (Fin N))
     calc
       Set.encard {B ∈ ℬ | x ∈ B} ≤ Set.encard {B ∈ pullback | x ∈ B} := by
         apply Set.encard_le_encard
@@ -397,12 +397,11 @@ theorem compactSubset_euclideanSpace_hasCoveringDimensionLE {N : ℕ}
     HasCoveringDimensionLE X N := by
   -- Choose a Lebesgue number, then refine by the uniformly fine order-`N + 1` cover.
   intro 𝒜 h𝒜open h𝒜cover
-  letI : CompactSpace X := isCompact_iff_compactSpace.mp hX
+  let _ : CompactSpace X := isCompact_iff_compactSpace.mp hX
   obtain ⟨δ, hδ⟩ := lebesgueNumberLemma 𝒜 h𝒜open h𝒜cover
   obtain ⟨ℬ, hℬopen, hℬcover, hℬorder, hℬsmall⟩ :=
     exists_subtypeEuclideanCover_order X δ hδ.pos
-  refine ⟨ℬ, smallDiameterOpenCover_isOpenRefinement hδ hℬopen hℬsmall,
-    hℬcover, ?_⟩
+  refine ⟨ℬ, hδ.isOpenRefinement hℬopen hℬsmall, hℬcover, ?_⟩
   simpa using hℬorder
 
 /-- Theorem 50.6. Every compact subspace of `EuclideanSpace ℝ (Fin N)` has

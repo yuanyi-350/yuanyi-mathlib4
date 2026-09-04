@@ -5,6 +5,7 @@ Authors: Yi Yuan
 -/
 module
 
+public import Mathlib.Topology.CoveringDimension.Basic
 public import Mathlib.Topology.CoveringDimension.LebesgueNumber
 
 /-! # The Lebesgue number lemma -/
@@ -12,6 +13,24 @@ public import Mathlib.Topology.CoveringDimension.LebesgueNumber
 public section
 
 universe u
+
+namespace IsLebesgueNumber
+
+/-- A nonempty bounded open cover whose members have diameter smaller than a Lebesgue number
+is an open refinement of the original cover. -/
+theorem isOpenRefinement {X : Type u} [PseudoMetricSpace X]
+    {𝒜 ℬ : Set (Set X)} {δ : ℝ} (hδ : IsLebesgueNumber 𝒜 δ)
+    (hℬopen : ∀ B ∈ ℬ, IsOpen B)
+    (hℬsmall : ∀ B ∈ ℬ,
+      B.Nonempty ∧ Bornology.IsBounded B ∧ Metric.diam B < δ) :
+    IsOpenRefinement ℬ 𝒜 := by
+  rw [isOpenRefinement_iff]
+  refine ⟨?_, hℬopen⟩
+  rw [isRefinement_iff]
+  intro B hB
+  exact hδ.exists_superset (hℬsmall B hB).1 (hℬsmall B hB).2.1 (hℬsmall B hB).2.2
+
+end IsLebesgueNumber
 
 /-- Helper for Lemma 27.5: a bounded set of sufficiently small diameter lies in a
 ball centered at any of its points. -/

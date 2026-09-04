@@ -421,22 +421,6 @@ private lemma barycentricMap_separatesAtScale
     exact ne_of_gt hi
   exact (not_lt_of_ge hxy) (hdomain i x hixU y hiyU)
 
-open scoped Classical in
-/-- Helper for Theorem 50.4: a finite indexed Euclidean family can be perturbed
-so that every subfamily of at most the ambient dimension plus one is affinely
-independent. -/
-private lemma existsNearbyBoundedAffineIndependentFamily
-    {ι : Type*} [Finite ι] {N : ℕ}
-    (v : ι → EuclideanSpace ℝ (Fin N)) {ε : ℝ} (hε : 0 < ε) :
-    ∃ z : ι → EuclideanSpace ℝ (Fin N),
-      (∀ i, dist (z i) (v i) < ε) ∧
-      ∀ t : Finset ι, t.card ≤ N + 1 →
-        AffineIndependent ℝ (fun i : {i // i ∈ t} ↦ z i.1) := by
-  -- The support theorem carries out the processed-finset induction, choosing
-  -- each new point in its prescribed ball outside all earlier small spans.
-  letI := Fintype.ofFinite ι
-  exact Theorem50_4.existsNearbyBoundedAffineIndependentFamily v hε
-
 /-- Helper for Theorem 50.4: on a nonempty compact metric space of covering
 dimension at most `m`, reciprocal-scale separating Euclidean maps are dense. -/
 lemma dense_setOf_separatesAtScale_of_nonempty
@@ -465,7 +449,7 @@ lemma dense_setOf_separatesAtScale_of_nonempty
   let a : {U : Set X // U ∈ s} → X := fun i ↦ Classical.choose (hnonempty i.1 i.2)
   have ha_mem : ∀ i, a i ∈ i.1 := fun i ↦ Classical.choose_spec (hnonempty i.1 i.2)
   obtain ⟨z, hz_close, hz_affine⟩ :=
-    existsNearbyBoundedAffineIndependentFamily (fun i ↦ f (a i)) hrhalf
+    Theorem50_4.existsNearbyBoundedAffineIndependentFamily (fun i ↦ f (a i)) hrhalf
   have hz_affine' : ∀ t : Finset {U : Set X // U ∈ s}, t.card ≤ 2 * m + 2 →
       AffineIndependent ℝ (fun i : {i // i ∈ t} ↦ z i.1) := by
     intro t ht
@@ -511,7 +495,7 @@ lemma isOpen_dense_setOf_separatesAtScale
   -- construction isolated in `dense_setOf_separatesAtScale_of_nonempty` otherwise.
   · cases isEmpty_or_nonempty X with
     | inl hX =>
-        letI : IsEmpty X := hX
+        let _ : IsEmpty X := hX
         rw [Metric.dense_iff]
         intro f r hr
         refine ⟨f, Metric.mem_ball.mpr ?_, ?_⟩
@@ -520,7 +504,7 @@ lemma isOpen_dense_setOf_separatesAtScale
         · intro x
           exact isEmptyElim x
     | inr hX =>
-        letI : Nonempty X := hX
+        let _ : Nonempty X := hX
         exact dense_setOf_separatesAtScale_of_nonempty hdim n
 
 /-- Helper for Theorem 50.4: separation at every reciprocal scale forces a map to
@@ -544,7 +528,7 @@ theorem existsEuclideanEmbedding_of_hasCoveringDimensionLE
     (hdim : HasCoveringDimensionLE X m) :
     ∃ f : X → EuclideanSpace ℝ (Fin (2 * m + 1)), Topology.IsEmbedding f := by
   -- Use a compatible metric once, so compact continuous maps carry the uniform metric.
-  letI : MetricSpace X := TopologicalSpace.metrizableSpaceMetric X
+  let _ : MetricSpace X := TopologicalSpace.metrizableSpaceMetric X
   let separatingMaps : ℕ → Set C(X, EuclideanSpace ℝ (Fin (2 * m + 1))) :=
     fun n ↦ {f | f.SeparatesAtScale (1 / (n + 1 : ℝ))}
   have hopen : ∀ n, IsOpen (separatingMaps n) := by

@@ -8114,7 +8114,6 @@ public import Mathlib.Topology.CoveringDimension.Partition
 public import Mathlib.Topology.CoveringDimension.PlaneCover
 public import Mathlib.Topology.CoveringDimension.PointFinite
 public import Mathlib.Topology.CoveringDimension.Shrinking
-public import Mathlib.Topology.CoveringDimension.TopologicalManifold
 public import Mathlib.Topology.Defs.Basic
 public import Mathlib.Topology.Defs.Filter
 public import Mathlib.Topology.Defs.Induced

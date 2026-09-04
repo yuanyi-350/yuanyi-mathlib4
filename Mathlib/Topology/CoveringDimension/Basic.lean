@@ -119,6 +119,24 @@ theorem mono {X : Type u} {𝒜 : Set (Set X)} {n k : ℕ}
     (h : 𝒜.HasOrderLE n) (hnk : n ≤ k) : 𝒜.HasOrderLE k :=
   fun x ↦ (h x).trans (by simpa using hnk)
 
+/-- Taking preimages of every member of a family does not increase its order. -/
+theorem preimage {Y : Type u} {Z : Type v} {𝒞 : Set (Set Z)} {n : ℕ}
+    (h𝒞 : 𝒞.HasOrderLE n) (f : Y → Z) :
+    ((fun V : Set Z ↦ f ⁻¹' V) '' 𝒞).HasOrderLE n := by
+  rw [Set.hasOrderLE_iff] at h𝒞 ⊢
+  intro y
+  let source : Set (Set Z) := {V ∈ 𝒞 | f y ∈ V}
+  let pullback : Set Z → Set Y := fun V ↦ f ⁻¹' V
+  have hsub : {B ∈ pullback '' 𝒞 | y ∈ B} ⊆ pullback '' source := by
+    intro B hB
+    obtain ⟨V, hV𝒞, rfl⟩ := hB.1
+    exact ⟨V, ⟨hV𝒞, hB.2⟩, rfl⟩
+  calc
+    Set.encard {B ∈ pullback '' 𝒞 | y ∈ B}
+        ≤ Set.encard (pullback '' source) := Set.encard_le_encard hsub
+    _ ≤ Set.encard source := Set.encard_image_le pullback source
+    _ ≤ n := h𝒞 (f y)
+
 end HasOrderLE
 
 /-- A collection has order `n` when the upper bound `n` is attained at some point. -/

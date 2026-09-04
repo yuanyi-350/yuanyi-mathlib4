@@ -150,13 +150,14 @@ open scoped Classical in
 perturbation whose subfamilies of size at most the ambient dimension plus one
 are affinely independent. -/
 lemma existsNearbyBoundedAffineIndependentFamily
-    {ι : Type*} [Fintype ι] {N : ℕ}
+    {ι : Type*} [Finite ι] {N : ℕ}
     (v : ι → EuclideanSpace ℝ (Fin N)) {ε : ℝ} (hε : 0 < ε) :
     ∃ z : ι → EuclideanSpace ℝ (Fin N),
       (∀ i, dist (z i) (v i) < ε) ∧
       ∀ t : Finset ι, t.card ≤ N + 1 →
         AffineIndependent ℝ (fun i : {i // i ∈ t} ↦ z i.1) := by
   classical
+  let _ := Fintype.ofFinite ι
   -- Induct over processed indices while retaining a total family, pointwise
   -- closeness on the processed set, and general position for every subfinset.
   have invariant : ∀ s : Finset ι,

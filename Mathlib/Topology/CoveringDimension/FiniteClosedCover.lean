@@ -6,7 +6,6 @@ Authors: Yi Yuan
 module
 
 public import Mathlib.Topology.CoveringDimension.ClosedUnion
-public import Mathlib.Topology.Homeomorph.Lemmas
 
 /-! # Covering dimension and finite closed covers -/
 
@@ -15,85 +14,6 @@ public section
 open scoped CoveringDimension
 
 universe u v
-
-/-- Helper for Corollary 50.3: a covering-dimension bound is preserved by a
-homeomorphism. -/
-private lemma hasCoveringDimensionLE_homeomorph
-    {A : Type u} {B : Type v} [TopologicalSpace A] [TopologicalSpace B]
-    (e : A ≃ₜ B) {n : ℕ} (h : HasCoveringDimensionLE A n) :
-    HasCoveringDimensionLE B n := by
-  -- Pull the target cover back to `A`, where the given bound supplies a refinement.
-  rw [hasCoveringDimensionLE_iff_pointwise] at h ⊢
-  intro 𝒰 h𝒰open h𝒰cover
-  let 𝒰' : Set (Set A) := (fun U : Set B ↦ e ⁻¹' U) '' 𝒰
-  have h𝒰'open : ∀ U ∈ 𝒰', IsOpen U := by
-    rintro U ⟨V, hV, rfl⟩
-    exact (h𝒰open V hV).preimage e.continuous
-  have h𝒰'cover : ⋃₀ 𝒰' = Set.univ := by
-    apply Set.eq_univ_of_forall
-    intro x
-    have hx : e x ∈ ⋃₀ 𝒰 := h𝒰cover.symm ▸ Set.mem_univ (e x)
-    rw [Set.mem_sUnion] at hx ⊢
-    obtain ⟨V, hV, hxV⟩ := hx
-    exact ⟨e ⁻¹' V, ⟨V, hV, rfl⟩, hxV⟩
-  obtain ⟨𝒱, h𝒱refines, h𝒱cover, h𝒱order⟩ := h 𝒰' h𝒰'open h𝒰'cover
-  let 𝒱' : Set (Set B) := (fun U : Set A ↦ e '' U) '' 𝒱
-  refine ⟨𝒱', ?_, ?_, ?_⟩
-  · -- Push the refinement forward; images of pulled-back parents lie in the parents.
-    rw [isOpenRefinement_iff, isRefinement_iff]
-    constructor
-    · rintro V ⟨U, hU, rfl⟩
-      obtain ⟨W, hW, hUW⟩ := h𝒱refines.subset_of_mem hU
-      obtain ⟨Z, hZ, rfl⟩ := hW
-      refine ⟨Z, hZ, ?_⟩
-      rintro y ⟨x, hxU, rfl⟩
-      exact hUW hxU
-    · rintro V ⟨U, hU, rfl⟩
-      exact e.isOpen_image.mpr (h𝒱refines.isOpen_of_mem hU)
-  · -- Surjectivity transports the fact that the refinement covers the space.
-    apply Set.eq_univ_of_forall
-    intro y
-    have hy : e.symm y ∈ ⋃₀ 𝒱 := h𝒱cover.symm ▸ Set.mem_univ (e.symm y)
-    rw [Set.mem_sUnion] at hy ⊢
-    obtain ⟨U, hU, hyU⟩ := hy
-    exact ⟨e '' U, ⟨U, hU, rfl⟩, ⟨e.symm y, hyU, e.apply_symm_apply y⟩⟩
-  · -- The members through a point correspond injectively under set image.
-    intro y
-    let incident : Set (Set A) := {U ∈ 𝒱 | e.symm y ∈ U}
-    have hincident : {V ∈ 𝒱' | y ∈ V} = (fun U : Set A ↦ e '' U) '' incident := by
-      ext V
-      constructor
-      · rintro ⟨⟨U, hU, rfl⟩, hyU⟩
-        obtain ⟨x, hxU, hxy⟩ := hyU
-        have hx : x = e.symm y := by
-          simpa using congrArg e.symm hxy
-        exact ⟨U, ⟨hU, hx ▸ hxU⟩, rfl⟩
-      · rintro ⟨U, ⟨hU, hyU⟩, rfl⟩
-        exact ⟨⟨U, hU, rfl⟩, ⟨e.symm y, hyU, e.apply_symm_apply y⟩⟩
-    rw [hincident, e.injective.image_injective.encard_image]
-    exact h𝒱order (e.symm y)
-
-/-- Helper for Corollary 50.3: a strict covering-dimension bound is preserved
-by a homeomorphism. -/
-private lemma hasCoveringDimensionLT_homeomorph
-    {A : Type u} {B : Type v} [TopologicalSpace A] [TopologicalSpace B]
-    (e : A ≃ₜ B) {n : ℕ} (h : HasCoveringDimensionLT A n) :
-    HasCoveringDimensionLT B n := by
-  -- Separate the empty-space endpoint from the successor bounds.
-  cases n with
-  | zero =>
-      constructor
-      intro y
-      exact h.false (e.symm y)
-  | succ n =>
-      exact hasCoveringDimensionLE_homeomorph e h
-
-/-- Helper for Corollary 50.3: covering dimension is invariant under a
-homeomorphism. -/
-private lemma coveringDimension_homeomorph
-    {A : Type u} {B : Type v} [TopologicalSpace A] [TopologicalSpace B]
-    (e : A ≃ₜ B) : dim A = dim B := by
-  exact e.coveringDimension_congr
 
 /-- Helper for Corollary 50.3: the copy of `A` inside a containing subtype `B`
 has the same covering dimension as `A`. -/
@@ -111,7 +31,7 @@ private lemma coveringDimension_nestedSubtype
     refine ⟨⟨p.1.1, p.2⟩, ?_⟩
     apply Subtype.ext
     exact Set.inclusion_right hAB p.1 p.2
-  exact (coveringDimension_homeomorph (hf.toHomeomorphOfSurjective hfsurjective)).symm
+  exact (hf.toHomeomorphOfSurjective hfsurjective).coveringDimension_congr.symm
 
 /-- Helper for Corollary 50.3: the covering dimension of the union of two
 closed subsets is the maximum of their covering dimensions. -/
@@ -188,7 +108,7 @@ theorem coveringDimension_iUnion_closed
     simpa using hcover
   calc
     dim X = dim (Set.univ : Set X) :=
-      (coveringDimension_homeomorph (Homeomorph.Set.univ X)).symm
+      (Homeomorph.Set.univ X).coveringDimension_congr.symm
     _ = dim (⋃ i ∈ (Finset.univ : Finset ι), Y i) :=
       congrArg (fun S : Set X ↦ dim S) hfiniteCover.symm
     _ = Finset.univ.sup fun i ↦ dim (Y i) :=
