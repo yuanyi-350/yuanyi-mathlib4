@@ -6,16 +6,15 @@ Authors: Yi Yuan
 module
 
 public import Mathlib.Topology.CoveringDimension.Basic
-public import Mathlib.Topology.Constructions
-import Mathlib.Topology.CoveringDimension.ClosedSubspace
+import Mathlib.Data.Fintype.Lattice
 
-/-! # Covering dimension of a union of two closed subspaces -/
+/-! # Covering dimension of finite unions of closed subspaces -/
 
 public section
 
 open scoped CoveringDimension
 
-universe u
+universe u v
 
 /-- Helper for Theorem 50.2: an open cover can be refined with controlled order at
 the points of a closed subspace whose covering dimension is bounded. -/
@@ -266,3 +265,116 @@ theorem coveringDimension_union_closed
             coveringDimension_le_iff]
           exact ⟨fun h ↦ ⟨h.closedSubtype hY, h.closedSubtype hZ⟩,
             fun h ↦ HasCoveringDimensionLE.unionClosed hY hZ hcover h.1 h.2⟩
+
+/-! ### Finite closed unions -/
+
+/-- Helper for Corollary 50.3: the covering dimension of the union of two
+closed subsets is the maximum of their covering dimensions. -/
+private lemma coveringDimension_closedUnion
+    {X : Type u} [TopologicalSpace X] {S T : Set X}
+    (hS : IsClosed S) (hT : IsClosed T) :
+    dim (S ∪ T : Set X) = max (dim S) (dim T) := by
+  -- Apply Theorem 50.2 inside the union subtype and hide its nested-subtype pieces.
+  let U : Set X := S ∪ T
+  let S' : Set U := (Subtype.val : U → X) ⁻¹' S
+  let T' : Set U := (Subtype.val : U → X) ⁻¹' T
+  have hS' : IsClosed S' := hS.preimage continuous_subtype_val
+  have hT' : IsClosed T' := hT.preimage continuous_subtype_val
+  have hcover : S' ∪ T' = Set.univ := by
+    apply Set.eq_univ_of_forall
+    intro x
+    rcases x.2 with hxS | hxT
+    · exact Or.inl hxS
+    · exact Or.inr hxT
+  have hSsub : S ⊆ U := Set.subset_union_left
+  have hTsub : T ⊆ U := Set.subset_union_right
+  calc
+    dim (S ∪ T : Set X) = dim U := rfl
+    _ = max (dim S') (dim T') := coveringDimension_union_closed hS' hT' hcover
+    _ = max (dim S) (dim T) := congrArg₂ max
+      (Topology.IsEmbedding.subtypeVal.homeomorphOfSubsetRange
+        (by simpa using hSsub)).coveringDimension_congr
+      (Topology.IsEmbedding.subtypeVal.homeomorphOfSubsetRange
+        (by simpa using hTsub)).coveringDimension_congr
+
+/-- Helper for Corollary 50.3: covering dimension turns a finite union of
+closed subsets into the finite supremum of their dimensions. -/
+private lemma coveringDimension_finset_iUnion_closed
+    {X : Type u} [TopologicalSpace X] {I : Type v}
+    (Y : I → Set X) (s : Finset I) (hclosed : ∀ i ∈ s, IsClosed (Y i)) :
+    dim (⋃ i ∈ s, Y i) = s.sup fun i ↦ dim (Y i) := by
+  classical
+  induction s using Finset.induction_on with
+  | empty => simp
+  | @insert a s ha ih =>
+      rw [Finset.set_biUnion_insert, Finset.sup_insert]
+      have hs : ∀ i ∈ s, IsClosed (Y i) := fun i hi ↦ hclosed i (Finset.mem_insert_of_mem hi)
+      rw [coveringDimension_closedUnion (hclosed a (Finset.mem_insert_self _ _))
+        (isClosed_biUnion_finset hs), ih hs]
+
+/-- The covering dimension of a finite union of closed subsets is the supremum of their
+covering dimensions. -/
+theorem coveringDimension_iUnion_of_isClosed
+    {X : Type u} [TopologicalSpace X] {ι : Type v} [Finite ι]
+    (Y : ι → Set X) (hclosed : ∀ i, IsClosed (Y i)) :
+    dim (⋃ i, Y i) = ⨆ i, dim (Y i) := by
+  let _ := Fintype.ofFinite ι
+  have hunion : (⋃ i ∈ (Finset.univ : Finset ι), Y i) = ⋃ i, Y i := by simp
+  rw [← hunion, coveringDimension_finset_iUnion_closed Y Finset.univ (fun i _ ↦ hclosed i),
+    Finset.sup_univ_eq_iSup]
+
+/-- Corollary 50.3. The covering dimension of a finite closed cover is the
+maximum of the covering dimensions of its members. -/
+theorem coveringDimension_iUnion_closed
+    {X : Type u} [TopologicalSpace X] {ι : Type v} [Fintype ι]
+    (Y : ι → Set X) (hclosed : ∀ i, IsClosed (Y i))
+    (hcover : (⋃ i, Y i) = Set.univ) :
+    dim X = Finset.univ.sup fun i ↦ dim (Y i) := by
+  rw [Finset.sup_univ_eq_iSup, ← coveringDimension_iUnion_of_isClosed Y hclosed, hcover]
+  exact (Homeomorph.Set.univ X).coveringDimension_congr.symm
+
+/-- Helper for Definition 50.8: a finite closed cover inherits the common
+covering-dimension bound. -/
+lemma HasCoveringDimensionLE.finite_iUnion_closed
+    {X : Type u} [TopologicalSpace X] {ι : Type v} [Finite ι] {n : ℕ}
+    (Y : ι → Set X) (hclosed : ∀ i, IsClosed (Y i))
+    (hcover : (⋃ i, Y i) = Set.univ)
+    (hdim : ∀ i, HasCoveringDimensionLE (Y i) n) :
+    HasCoveringDimensionLE X n := by
+  -- Convert the finite closed-union formula into numerical upper bounds.
+  classical
+  let _ : Fintype ι := Fintype.ofFinite ι
+  rw [← coveringDimension_le_iff, coveringDimension_iUnion_closed Y hclosed hcover,
+    Finset.sup_le_iff]
+  intro i _
+  exact (coveringDimension_le_iff (Y i) n).mpr (hdim i)
+
+/-- Helper for Definition 50.8: a finite union of closed subspaces with a common
+covering-dimension bound has that same bound. -/
+lemma HasCoveringDimensionLE.finiteUnionClosedSubtypes
+    {X : Type u} [TopologicalSpace X] {ι : Type v} [Finite ι] {n : ℕ}
+    (Y : ι → Set X) (hclosed : ∀ i, IsClosed (Y i))
+    (hdim : ∀ i, HasCoveringDimensionLE (Y i) n) :
+    HasCoveringDimensionLE (⋃ i, Y i) n := by
+  rw [← coveringDimension_le_iff, coveringDimension_iUnion_of_isClosed Y hclosed, iSup_le_iff]
+  exact fun i ↦ (coveringDimension_le_iff (Y i) n).mpr (hdim i)
+
+/-- Helper for Definition 50.8: the strict covering-dimension bound is preserved by finite
+unions of closed subspaces. -/
+lemma hasCoveringDimensionLT_finiteUnionClosedSubtypes
+    {X : Type u} [TopologicalSpace X] {ι : Type v} [Finite ι] {n : ℕ}
+    (Y : ι → Set X) (hclosed : ∀ i, IsClosed (Y i))
+    (hdim : ∀ i, HasCoveringDimensionLT (Y i) n) :
+    HasCoveringDimensionLT (⋃ i, Y i) n := by
+  -- At zero every member is empty; at a successor use the non-strict union theorem.
+  cases n with
+  | zero =>
+      apply (hasCoveringDimensionLT_zero_iff _).mpr
+      constructor
+      intro z
+      have hz : z.1 ∈ ⋃ i, Y i := z.2
+      rw [Set.mem_iUnion] at hz
+      obtain ⟨i, hzi⟩ := hz
+      exact ((hasCoveringDimensionLT_zero_iff _).mp (hdim i)).false ⟨z.1, hzi⟩
+  | succ n =>
+      exact HasCoveringDimensionLE.finiteUnionClosedSubtypes Y hclosed hdim

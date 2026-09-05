@@ -7,7 +7,7 @@ module
 
 public import Mathlib.Geometry.Manifold.ChartedSpace
 public import Mathlib.Topology.CoveringDimension.Euclidean
-public import Mathlib.Topology.CoveringDimension.FiniteClosedUnion
+public import Mathlib.Topology.CoveringDimension.ClosedUnion
 public import Mathlib.Topology.ShrinkingLemma
 
 /-! # Covering dimension of compact topological manifolds -/

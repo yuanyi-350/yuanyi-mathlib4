@@ -6,6 +6,7 @@ Authors: Yury Kudryashov, Reid Barton
 module
 
 public import Mathlib.Topology.Separation.Regular
+public import Mathlib.Topology.Sets.OpenCover
 
 /-!
 # The shrinking lemma
@@ -18,10 +19,12 @@ For finite or countable coverings this lemma can be proved without the axiom of 
 [ncatlab](https://ncatlab.org/nlab/show/shrinking+lemma) for details. We only formalize the most
 general result that works for any covering but needs the axiom of choice.
 
-We prove two versions of the lemma:
+We prove the following versions of the lemma:
 
 * `exists_subset_iUnion_closure_subset` deals with a covering of a closed set in a normal space;
 * `exists_iUnion_eq_closure_subset` deals with a covering of the whole space.
+* `TopologicalSpace.IsOpenCover.exists_finite_shrinking` gives a finite subcover without
+  repetitions and an open shrinking for an open cover of a compact normal space.
 
 ## Tags
 
@@ -33,6 +36,8 @@ normal space, shrinking lemma
 open Set Function
 
 noncomputable section
+
+universe u
 
 variable {ι X : Type*} [TopologicalSpace X]
 
@@ -257,6 +262,28 @@ theorem exists_iUnion_eq_closed_subset (uo : ∀ i, IsOpen (u i)) (uf : ∀ x, {
   ⟨v, univ_subset_iff.1 vU, hv⟩
 
 end NormalSpace
+
+/-- An open cover of a compact normal space has a finite subcover, indexed without repetitions,
+and an open shrinking whose closures lie in the selected members. -/
+theorem TopologicalSpace.IsOpenCover.exists_finite_shrinking
+    {X : Type u} [TopologicalSpace X] [CompactSpace X] [NormalSpace X]
+    {U : ι → Opens X} (hU : IsOpenCover U) :
+    ∃ (κ : Type u) (_ : Finite κ) (V W : κ → Opens X),
+      IsOpenCover V ∧ IsOpenCover W ∧
+      Injective (fun i ↦ (V i : Set X)) ∧
+      (∀ i, V i ∈ range U) ∧ ∀ i, closure (W i : Set X) ⊆ V i := by
+  classical
+  have hU' : IsOpenCover (fun V : range U ↦ V.1) :=
+    IsOpenCover.mk ((iSup_range' id U).trans hU.iSup_eq_top)
+  obtain ⟨s, hs⟩ := hU'.exists_finite_of_compactSpace
+  let V : s → Opens X := fun i ↦ i.1.1
+  have hV : IsOpenCover V := hs
+  obtain ⟨W, hWcover, hWopen, hWV⟩ := exists_iUnion_eq_closure_subset
+    (fun i ↦ (V i).isOpen) (fun _ ↦ Set.toFinite _) hV.iSup_set_eq_univ
+  exact ⟨s, inferInstance, V, fun i ↦ ⟨W i, hWopen i⟩,
+    hV, IsOpenCover.of_sets hWopen hWcover,
+    SetLike.coe_injective.comp (Subtype.val_injective.comp Subtype.val_injective),
+    fun i ↦ i.1.2, hWV⟩
 
 section T2LocallyCompactSpace
 

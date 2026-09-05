@@ -5,7 +5,7 @@ Authors: Yi Yuan
 -/
 module
 
-public import Mathlib.Topology.CoveringDimension.FiniteClosedUnion
+public import Mathlib.Topology.CoveringDimension.ClosedUnion
 public import Mathlib.Topology.CoveringDimension.Partition
 public import Mathlib.Topology.CoveringDimension.ClosedSwelling
 public import Mathlib.Topology.Metrizable.Basic
@@ -171,9 +171,16 @@ lemma hasCoveringDimensionLE_of_openPartitions
   -- the complement of its parent open set.
   rw [hasCoveringDimensionLE_iff]
   intro 𝒜 h𝒜open h𝒜cover
+  let A : 𝒜 → Opens X := fun U ↦ ⟨U.1, h𝒜open U.1 U.2⟩
+  have hA : IsOpenCover A :=
+    IsOpenCover.of_sets _ (by simpa only [← Set.sUnion_eq_iUnion] using h𝒜cover)
   obtain ⟨ι, hιfinite, B, C, hBcover, hCcover, _, hBmem, hCclosure⟩ :=
-    existsFiniteIndexedShrinkingSubcover 𝒜 h𝒜open h𝒜cover
-  let p : ι → 𝒜 := fun i ↦ ⟨B i, hBmem i⟩
+    hA.exists_finite_shrinking
+  have hBmem' (i : ι) : (B i : Set X) ∈ 𝒜 := by
+    obtain ⟨U, hU⟩ := hBmem i
+    rw [← hU]
+    exact U.2
+  let p : ι → 𝒜 := fun i ↦ ⟨B i, hBmem' i⟩
   have hBp (i : ι) : (B i : Set X) ⊆ p i := Set.Subset.rfl
   let _ : Finite ι := hιfinite
   have hseparator (i : ι) :
@@ -235,37 +242,17 @@ lemma hasCoveringDimensionLE_of_openPartitions
   | succ q =>
       -- Refine the traces of the original finite cover on the closed frontier locus, then swell
       -- its closed shrinking back into the ambient space without changing its nerve.
-      let 𝒜L : Set (Set L) := Set.range fun i ↦ Subtype.val ⁻¹' (B i : Set X)
       let _ : CompactSpace L := isCompact_iff_compactSpace.mp hLclosed.isCompact
-      have h𝒜Lopen : ∀ U ∈ 𝒜L, IsOpen U := by
-        rintro U ⟨i, rfl⟩
-        exact (B i).2.preimage continuous_subtype_val
-      have h𝒜Lcover : ⋃₀ 𝒜L = Set.univ := by
-        apply Set.eq_univ_of_forall
-        intro x
-        exact Set.mem_sUnion.mpr ⟨Subtype.val ⁻¹' (B (Classical.choose
-          (Set.mem_iUnion.mp (hBcover.iSup_set_eq_univ.symm ▸ Set.mem_univ x.1))) : Set X),
-          ⟨Classical.choose
-            (Set.mem_iUnion.mp (hBcover.iSup_set_eq_univ.symm ▸ Set.mem_univ x.1)), rfl⟩,
-          Classical.choose_spec
-            (Set.mem_iUnion.mp (hBcover.iSup_set_eq_univ.symm ▸ Set.mem_univ x.1))⟩
-      obtain ⟨κ, hκfinite, R, S, r, hRcover, hScover, hRorder, hRinjective,
+      let A : ι → Opens L := fun i ↦ (B i).comap ⟨Subtype.val, continuous_subtype_val⟩
+      have hA : IsOpenCover A := hBcover.comap ⟨Subtype.val, continuous_subtype_val⟩
+      obtain ⟨κ, hκfinite, R, S, a, hRcover, hScover, hRorder, hRinjective,
           hRparent, hSclosure⟩ :=
-        existsFiniteIndexedShrinkingRefinement hLdim 𝒜L h𝒜Lopen h𝒜Lcover
+        existsFiniteIndexedShrinkingRefinement hLdim A hA
       let _ : Finite κ := hκfinite
-      have hrindex (j : κ) : ∃ i : ι, (r j : Set L) = Subtype.val ⁻¹' (B i : Set X) :=
-        by
-          have hj := (r j).2
-          simp only [𝒜L, Set.mem_range] at hj
-          obtain ⟨i, hi⟩ := hj
-          exact ⟨i, hi.symm⟩
-      choose a ha using hrindex
       have hRA : ∀ j, Subtype.val '' (R j : Set L) ⊆ (B (a j) : Set X) := by
         intro j x hx
         obtain ⟨z, hzR, rfl⟩ := hx
-        have hzparent : z ∈ (r j : Set L) := hRparent j hzR
-        rw [ha j] at hzparent
-        exact hzparent
+        exact hRparent j hzR
       obtain ⟨E, hEopen, hLE, hEclosure, hEorder⟩ :=
         existsAmbientOpenSwelling_of_closedSubtypeCover hLclosed R S hScover hRorder
           hRinjective hSclosure (fun j ↦ (B (a j) : Set X)) (fun j ↦ (B (a j)).2) hRA

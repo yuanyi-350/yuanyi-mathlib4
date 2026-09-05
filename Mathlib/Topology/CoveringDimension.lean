@@ -5,7 +5,7 @@ Authors: Yi Yuan
 -/
 module
 
-public import Mathlib.Topology.CoveringDimension.FiniteEmbedding
+public import Mathlib.Topology.CoveringDimension.Embedding
 public import Mathlib.Topology.CoveringDimension.InductiveDimension
 public import Mathlib.Topology.CoveringDimension.Manifold
 

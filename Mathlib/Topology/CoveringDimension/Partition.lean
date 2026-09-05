@@ -6,13 +6,13 @@ Authors: Yi Yuan
 module
 
 public import Mathlib.Topology.CoveringDimension.Basic
-public import Mathlib.Topology.CoveringDimension.Shrinking
 import Mathlib.Analysis.Convex.PartitionOfUnity
 import Mathlib.Analysis.Normed.Module.Convex
 public import Mathlib.Topology.Baire.CompleteMetrizable
 public import Mathlib.Topology.ContinuousMap.Compact
 public import Mathlib.Topology.Metrizable.Basic
 public import Mathlib.Topology.PartitionOfUnity
+public import Mathlib.Topology.ShrinkingLemma
 public import Mathlib.Topology.UrysohnsLemma
 
 /-! # Partitions between closed sets and covering dimension -/
@@ -43,27 +43,29 @@ space can be represented by finitely many indexed opens together with a closure-
 shrinking and explicit parents in the original cover. -/
 lemma existsFiniteIndexedShrinkingRefinement
     {X : Type u} [TopologicalSpace X] [CompactSpace X] [MetrizableSpace X] {n : ℕ}
-    (h : HasCoveringDimensionLE X n) (𝒜 : Set (Set X))
-    (h𝒜open : ∀ U ∈ 𝒜, IsOpen U) (h𝒜cover : ⋃₀ 𝒜 = Set.univ) :
-    ∃ (ι : Type u) (_ : Finite ι) (B C : ι → Opens X) (p : ι → 𝒜),
+    (h : HasCoveringDimensionLE X n) {α : Type*} (A : α → Opens X)
+    (hA : IsOpenCover A) :
+    ∃ (ι : Type u) (_ : Finite ι) (B C : ι → Opens X) (p : ι → α),
       IsOpenCover B ∧ IsOpenCover C ∧
         (Set.range (fun i ↦ (B i : Set X))).HasOrderLE (n + 1) ∧
         Function.Injective (fun i ↦ (B i : Set X)) ∧
-        (∀ i, (B i : Set X) ⊆ p i) ∧
+        (∀ i, B i ≤ A (p i)) ∧
         ∀ i, closure (C i : Set X) ⊆ B i := by
   classical
   -- Apply the finite shrinking construction to an order-bounded refinement.
-  obtain ⟨ℬ, hℬrefines, hℬopen, hℬcover, hℬorder⟩ :=
-    (hasCoveringDimensionLE_iff X n).mp h 𝒜 h𝒜open h𝒜cover
+  obtain ⟨κ, V, hVcover, hVrefines, hVorder⟩ := h.exists_refinement A hA
   obtain ⟨ι, hι, B, C, hBcover, hCcover, hBinjective, hBmem, hCclosure⟩ :=
-    existsFiniteIndexedShrinkingSubcover ℬ hℬopen hℬcover
+    hVcover.exists_finite_shrinking
   -- Choose an original-cover parent for each retained refinement member.
-  have hparent (i : ι) : ∃ A : 𝒜, (B i : Set X) ⊆ A := by
-    obtain ⟨A, hA𝒜, hBA⟩ := hℬrefines (hBmem i)
-    exact ⟨⟨A, hA𝒜⟩, hBA⟩
+  have hparent (i : ι) : ∃ a, B i ≤ A a := by
+    obtain ⟨_, ⟨a, rfl⟩, hBA⟩ := hVrefines (hBmem i)
+    exact ⟨a, hBA⟩
   choose p hp using hparent
-  exact ⟨ι, hι, B, C, p, hBcover, hCcover,
-    hℬorder.of_subset (Set.range_subset_iff.mpr hBmem), hBinjective, hp, hCclosure⟩
+  refine ⟨ι, hι, B, C, p, hBcover, hCcover, hVorder.of_subset ?_,
+    hBinjective, hp, hCclosure⟩
+  rintro _ ⟨i, rfl⟩
+  obtain ⟨j, hj⟩ := hBmem i
+  exact ⟨j, congrArg (fun U : Opens X ↦ (U : Set X)) hj⟩
 
 /-- Helper for Definition 50.8: a real-valued map has a buffered fine zero cover of order
 `q` when one finite open family has order at most `q` throughout a neighborhood of its zero
@@ -158,21 +160,19 @@ lemma dense_setOf_hasBufferedFineZeroCover
   rw [Metric.dense_iff]
   intro f r hr
   classical
-  let neighborhood : X → Set X := fun x ↦
-    Metric.ball x (δ / 2) ∩ f ⁻¹' Metric.ball (f x) (r / 4)
-  let 𝒜 : Set (Set X) := Set.range neighborhood
-  have h𝒜open : ∀ U ∈ 𝒜, IsOpen U := by
-    rintro U ⟨x, rfl⟩
-    exact Metric.isOpen_ball.inter (Metric.isOpen_ball.preimage f.continuous)
-  have h𝒜cover : ⋃₀ 𝒜 = Set.univ := by
+  let neighborhood : X → Opens X := fun x ↦
+    ⟨Metric.ball x (δ / 2) ∩ f ⁻¹' Metric.ball (f x) (r / 4),
+      Metric.isOpen_ball.inter (Metric.isOpen_ball.preimage f.continuous)⟩
+  have hcover : IsOpenCover neighborhood := by
+    apply IsOpenCover.of_sets
     apply Set.eq_univ_of_forall
     intro x
-    apply Set.mem_sUnion.mpr
-    refine ⟨neighborhood x, ⟨x, rfl⟩, ?_⟩
+    apply Set.mem_iUnion.mpr
+    refine ⟨x, ?_⟩
     have hrquarter : 0 < r / 4 := by positivity
     exact ⟨Metric.mem_ball_self (half_pos hδ), Metric.mem_ball_self hrquarter⟩
-  obtain ⟨ι, hιfinite, B, _, p, hBcover, _, hBorder, hBinjective, hBp, _⟩ :=
-    existsFiniteIndexedShrinkingRefinement h 𝒜 h𝒜open h𝒜cover
+  obtain ⟨ι, hιfinite, B, _, c, hBcover, _, hBorder, hBinjective, hBp, _⟩ :=
+    existsFiniteIndexedShrinkingRefinement h neighborhood hcover
   let _ : Finite ι := hιfinite
   let _ : Fintype ι := Fintype.ofFinite ι
   have hιnonempty : Nonempty ι := by
@@ -181,11 +181,6 @@ lemma dense_setOf_hasBufferedFineZeroCover
     obtain ⟨i, _⟩ := Set.mem_iUnion.mp hx
     exact ⟨i⟩
   let i₀ : ι := Classical.choice hιnonempty
-  have hcenter (i : ι) : ∃ c : X, (p i : Set X) = neighborhood c := by
-    obtain ⟨c, hc⟩ : ∃ c, neighborhood c = (p i : Set X) := by
-      simpa only [𝒜, Set.mem_range] using (p i).2
-    exact ⟨c, hc.symm⟩
-  choose c hc using hcenter
   let z : ι → ℝ := fun i ↦ if f (c i) = 0 then r / 4 else f (c i)
   have hznonzero : ∀ i, z i ≠ 0 := by
     intro i
@@ -218,7 +213,7 @@ lemma dense_setOf_hasBufferedFineZeroCover
   have hzpoint : ∀ i x, ρ i x ≠ 0 → dist (z i) (f x) < r := by
     intro i x hix
     have hxB : x ∈ B i := hρ i (subset_tsupport (ρ i) hix)
-    have hxparent : x ∈ neighborhood (c i) := hc i ▸ hBp i hxB
+    have hxparent : x ∈ neighborhood (c i) := hBp i hxB
     have hcxf : dist (f (c i)) (f x) < r / 4 := by
       rw [dist_comm]
       exact Metric.mem_ball.mp hxparent.2
@@ -286,10 +281,10 @@ lemma dense_setOf_hasBufferedFineZeroCover
     exact (ENat.lt_add_one_iff (ENat.natCast_ne_top n)).mp hltSucc
   have h𝒰diameter : ∀ U ∈ 𝒰, ∀ x ∈ U, ∀ y ∈ U, dist x y < δ := by
     rintro U ⟨i, _, rfl⟩ x hx y hy
-    have hxc : dist x (c i) < δ / 2 := Metric.mem_ball.mp (hc i ▸ hBp i hx).1
+    have hxc : dist x (c i) < δ / 2 := Metric.mem_ball.mp (hBp i hx).1
     have hcy : dist (c i) y < δ / 2 := by
       rw [dist_comm]
-      exact Metric.mem_ball.mp (hc i ▸ hBp i hy).1
+      exact Metric.mem_ball.mp (hBp i hy).1
     have hsum : dist x (c i) + dist (c i) y < δ := by linarith
     exact lt_of_le_of_lt (dist_triangle x (c i) y) hsum
   exact ⟨g, Metric.mem_ball.mpr hgclose,
