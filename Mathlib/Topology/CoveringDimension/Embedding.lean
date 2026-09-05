@@ -24,64 +24,17 @@ open scoped CoveringDimension
 
 universe u
 
-/-- Helper for Theorem 50.4: a continuous map separates points at scale `δ` when
-points at distance at least `δ` have distinct images. -/
-def ContinuousMap.SeparatesAtScale {X E : Type*} [TopologicalSpace X]
-    [PseudoMetricSpace X] [TopologicalSpace E] (δ : ℝ) (f : C(X, E)) : Prop :=
-  ∀ x y, δ ≤ dist x y → f x ≠ f y
-
-/-- Helper for Theorem 50.4: scale-separating continuous maps form an open set
-for the uniform metric on maps from a compact pseudometric space. -/
-lemma isOpen_setOf_separatesAtScale
-    {X E : Type*} [PseudoMetricSpace X] [CompactSpace X] [MetricSpace E]
-    {δ : ℝ} : IsOpen {f : C(X, E) | f.SeparatesAtScale δ} := by
-  -- At a separating map, minimize image distance on the compact locus of pairs
-  -- whose domain distance is at least the prescribed scale.
-  rw [Metric.isOpen_iff]
-  intro f hf
-  let K : Set (X × X) := {p | δ ≤ dist p.1 p.2}
-  have hK : IsCompact K := by
-    have hKclosed : IsClosed {p : X × X | δ ≤ dist p.1 p.2} :=
-      isClosed_le continuous_const continuous_dist
-    exact hKclosed.isCompact
-  by_cases hKne : K.Nonempty
-  · let d : X × X → ℝ := fun p ↦ dist (f p.1) (f p.2)
-    have hd_cont : Continuous d :=
-      (f.continuous.comp continuous_fst).dist (f.continuous.comp continuous_snd)
-    obtain ⟨p, hpK, hpmin⟩ := hK.exists_isMinOn hKne hd_cont.continuousOn
-    have hdp : 0 < d p := by
-      exact dist_pos.mpr (hf p.1 p.2 hpK)
-    refine ⟨d p / 3, by positivity, ?_⟩
-    intro g hgf x y hxy hgeq
-    have hxyK : (x, y) ∈ K := hxy
-    have hmin : d p ≤ d (x, y) := hpmin hxyK
-    have hgf_dist : dist f g < d p / 3 := by
-      rw [dist_comm]
-      exact Metric.mem_ball.mp hgf
-    have hgx : dist (f x) (g x) < d p / 3 :=
-      lt_of_le_of_lt (ContinuousMap.dist_apply_le_dist x) hgf_dist
-    have hgy : dist (g y) (f y) < d p / 3 := by
-      rw [dist_comm]
-      exact lt_of_le_of_lt (ContinuousMap.dist_apply_le_dist y) hgf_dist
-    -- A perturbation smaller than one third of the minimum cannot identify a
-    -- pair from the scale-separated locus.
-    have hbound : d (x, y) < d p / 3 + 0 + d p / 3 := by
-      calc
-        d (x, y) = dist (f x) (f y) := rfl
-        _ ≤ dist (f x) (g x) + dist (g x) (g y) + dist (g y) (f y) :=
-          dist_triangle4 _ _ _ _
-        _ = dist (f x) (g x) + 0 + dist (g y) (f y) := by
-          rw [hgeq, dist_self]
-        _ < d p / 3 + 0 + d p / 3 := by
-          gcongr
-    linarith
-  · -- If there are no pairs at this scale, every map separates vacuously.
-    have hKempty : K = ∅ := Set.not_nonempty_iff_eq_empty.mp hKne
-    refine ⟨1, by norm_num, ?_⟩
-    intro g _ x y hxy
-    have hxyK : (x, y) ∈ K := hxy
-    rw [hKempty] at hxyK
-    exact hxyK.elim
+/-- Continuous maps whose product maps a compact set of pairs off the diagonal form an open set. -/
+lemma isOpen_setOf_mapsTo_compl_diagonal
+    {X E : Type*} [TopologicalSpace X] [LocallyCompactSpace X]
+    [TopologicalSpace E] [T2Space E] {K : Set (X × X)} (hK : IsCompact K) :
+    IsOpen {f : C(X, E) | Set.MapsTo (Prod.map f f) K (Set.diagonal E)ᶜ} := by
+  have hc : Continuous (fun f : C(X, E) ↦ f.prodMap f) := by
+    apply ContinuousMap.continuous_of_continuous_uncurry
+    exact (continuous_eval.comp (continuous_fst.prodMk continuous_snd.fst)).prodMk
+      (continuous_eval.comp (continuous_fst.prodMk continuous_snd.snd))
+  exact (ContinuousMap.isOpen_setOfPred_mapsTo hK
+    (isClosed_diagonal (X := E)).isOpen_compl).preimage hc
 
 open scoped Classical in
 /-- Helper for Theorem 50.4: covering dimension supplies a finite open cover
@@ -196,7 +149,7 @@ private lemma activePartitionIndices_card_le
 open scoped Classical in
 /-- Helper for Theorem 50.4: bounded affine independence of the vertices makes
 the associated barycentric map separate points at the controlled scale. -/
-private lemma barycentricMap_separatesAtScale
+private lemma barycentricMap_mapsTo_compl_diagonal
     {X ι E : Type*} [PseudoMetricSpace X] [Fintype ι]
     [NormedAddCommGroup E] [NormedSpace ℝ E]
     (ρ : PartitionOfUnity ι X Set.univ) (U : ι → Set X)
@@ -207,9 +160,10 @@ private lemma barycentricMap_separatesAtScale
     (haff : ∀ t : Finset ι, t.card ≤ 2 * m + 2 →
       AffineIndependent ℝ (fun i : {i // i ∈ t} ↦ z i.1))
     (hdomain : ∀ i, ∀ x ∈ U i, ∀ y ∈ U i, dist x y < δ) :
-    g.SeparatesAtScale δ := by
+    Set.MapsTo (Prod.map g g) {p : X × X | δ ≤ dist p.1 p.2} (Set.diagonal E)ᶜ := by
   classical
-  intro x y hxy hgeq
+  rintro ⟨x, y⟩ hxy hgeq
+  change g x = g y at hgeq
   let t := (Finset.univ.filter fun i ↦ ρ i x ≠ 0) ∪
     (Finset.univ.filter fun i ↦ ρ i y ≠ 0)
   have htcard : t.card ≤ 2 * m + 2 := by
@@ -256,11 +210,12 @@ private lemma barycentricMap_separatesAtScale
 
 /-- Helper for Theorem 50.4: on a nonempty compact metric space of covering
 dimension at most `m`, reciprocal-scale separating Euclidean maps are dense. -/
-lemma dense_setOf_separatesAtScale_of_nonempty
+lemma dense_setOf_mapsTo_compl_diagonal_of_nonempty
     {X : Type u} [MetricSpace X] [CompactSpace X] [Nonempty X]
     {m : ℕ} (hdim : HasCoveringDimensionLE X m) (n : ℕ) :
     Dense {f : C(X, EuclideanSpace ℝ (Fin (2 * m + 1))) |
-      f.SeparatesAtScale (1 / (n + 1 : ℝ))} := by
+      Set.MapsTo (Prod.map f f) {p : X × X | 1 / (n + 1 : ℝ) ≤ dist p.1 p.2}
+        (Set.diagonal (EuclideanSpace ℝ (Fin (2 * m + 1))))ᶜ} := by
   rw [Metric.dense_iff]
   intro f r hr
   have hscale : 0 < 1 / (n + 1 : ℝ) := by positivity
@@ -319,23 +274,26 @@ lemma dense_setOf_separatesAtScale_of_nonempty
       ρ.finsum_smul_mem_convex (g := fun i _ ↦ z i) (Set.mem_univ x)
         (fun i hi ↦ Metric.mem_ball.mpr (hz_pointwise i x hi)) (convex_ball (f x) r)
   · -- Coefficient uniqueness on the union of two active supports gives scale separation.
-    exact barycentricMap_separatesAtScale ρ (fun U ↦ U.1) hρ z g hg hactive hz_affine'
+    exact barycentricMap_mapsTo_compl_diagonal ρ (fun U ↦ U.1) hρ z g hg hactive hz_affine'
       (fun i ↦ hdomain i.1 i.2)
 
 /-- Helper for Theorem 50.4: at every positive reciprocal scale, the separating
 continuous maps form an open dense subset of the uniform-metric function space. -/
-lemma isOpen_dense_setOf_separatesAtScale
+lemma isOpen_dense_setOf_mapsTo_compl_diagonal
     {X : Type u} [MetricSpace X] [CompactSpace X]
     {m : ℕ} (hdim : HasCoveringDimensionLE X m) (n : ℕ) :
     IsOpen {f : C(X, EuclideanSpace ℝ (Fin (2 * m + 1))) |
-      f.SeparatesAtScale (1 / (n + 1 : ℝ))} ∧
+      Set.MapsTo (Prod.map f f) {p : X × X | 1 / (n + 1 : ℝ) ≤ dist p.1 p.2}
+        (Set.diagonal (EuclideanSpace ℝ (Fin (2 * m + 1))))ᶜ} ∧
     Dense {f : C(X, EuclideanSpace ℝ (Fin (2 * m + 1))) |
-      f.SeparatesAtScale (1 / (n + 1 : ℝ))} := by
-  -- Openness is the generic compact-domain perturbation result above.
+      Set.MapsTo (Prod.map f f) {p : X × X | 1 / (n + 1 : ℝ) ≤ dist p.1 p.2}
+        (Set.diagonal (EuclideanSpace ℝ (Fin (2 * m + 1))))ᶜ} := by
+  -- The pairs at the prescribed scale form a compact set.
   constructor
-  · exact isOpen_setOf_separatesAtScale
+  · exact isOpen_setOf_mapsTo_compl_diagonal
+      (isClosed_le continuous_const continuous_dist).isCompact
   -- Density is vacuous on the empty domain and is the geometric approximation
-  -- construction isolated in `dense_setOf_separatesAtScale_of_nonempty` otherwise.
+  -- construction isolated in `dense_setOf_mapsTo_compl_diagonal_of_nonempty` otherwise.
   · cases isEmpty_or_nonempty X with
     | inl hX =>
         let _ : IsEmpty X := hX
@@ -344,24 +302,11 @@ lemma isOpen_dense_setOf_separatesAtScale
         refine ⟨f, Metric.mem_ball.mpr ?_, ?_⟩
         · rw [dist_self]
           exact hr
-        · intro x
+        · rintro ⟨x, y⟩
           exact isEmptyElim x
     | inr hX =>
         let _ : Nonempty X := hX
-        exact dense_setOf_separatesAtScale_of_nonempty hdim n
-
-/-- Helper for Theorem 50.4: separation at every reciprocal scale forces a map to
-be injective. -/
-lemma Function.Injective.of_separatesAtAllReciprocalScales
-    {X E : Type*} [MetricSpace X] [TopologicalSpace E]
-    (f : C(X, E))
-    (hf : ∀ n : ℕ, f.SeparatesAtScale (1 / (n + 1 : ℝ))) : Function.Injective f := by
-  -- Distinct points have positive distance, so some reciprocal scale lies below it.
-  intro x y hxy
-  by_contra hne
-  have hdist : 0 < dist x y := dist_pos.mpr hne
-  obtain ⟨n, hn⟩ := exists_nat_one_div_lt hdist
-  exact hf n x y hn.le hxy
+        exact dense_setOf_mapsTo_compl_diagonal_of_nonempty hdim n
 
 /-- A compact metrizable space of covering dimension at most `m` embeds in
 `EuclideanSpace ℝ (Fin (2 * m + 1))`. -/
@@ -373,20 +318,23 @@ theorem existsEuclideanEmbedding_of_hasCoveringDimensionLE
   -- Use a compatible metric once, so compact continuous maps carry the uniform metric.
   let _ : MetricSpace X := TopologicalSpace.metrizableSpaceMetric X
   let separatingMaps : ℕ → Set C(X, EuclideanSpace ℝ (Fin (2 * m + 1))) :=
-    fun n ↦ {f | f.SeparatesAtScale (1 / (n + 1 : ℝ))}
+    fun n ↦ {f | Set.MapsTo (Prod.map f f)
+      {p : X × X | 1 / (n + 1 : ℝ) ≤ dist p.1 p.2}
+      (Set.diagonal (EuclideanSpace ℝ (Fin (2 * m + 1))))ᶜ}
   have hopen : ∀ n, IsOpen (separatingMaps n) := by
     intro n
-    exact (isOpen_dense_setOf_separatesAtScale hdim n).1
+    exact (isOpen_dense_setOf_mapsTo_compl_diagonal hdim n).1
   have hdense : ∀ n, Dense (separatingMaps n) := by
     intro n
-    exact (isOpen_dense_setOf_separatesAtScale hdim n).2
+    exact (isOpen_dense_setOf_mapsTo_compl_diagonal hdim n).2
   -- Baire's theorem supplies one continuous map separating at every reciprocal scale.
   obtain ⟨f, hf⟩ := (BaireSpace.baire_property separatingMaps hopen hdense).nonempty
-  have hfscales : ∀ n : ℕ, f.SeparatesAtScale (1 / (n + 1 : ℝ)) := by
-    intro n
-    exact Set.mem_iInter.mp hf n
-  have hinj : Function.Injective f :=
-    Function.Injective.of_separatesAtAllReciprocalScales f hfscales
+  have hinj : Function.Injective f := by
+    intro x y hxy
+    by_contra hne
+    obtain ⟨n, hn⟩ := exists_nat_one_div_lt (dist_pos.mpr hne)
+    have hfn := Set.mem_iInter.mp hf n
+    exact @hfn (x, y) hn.le hxy
   -- A continuous injection from a compact space to a Hausdorff space is an embedding.
   exact ⟨f, (f.continuous.isClosedEmbedding hinj).isEmbedding⟩
 

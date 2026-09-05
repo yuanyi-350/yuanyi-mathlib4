@@ -8095,7 +8095,6 @@ public import Mathlib.Topology.Covering.AddCircle
 public import Mathlib.Topology.Covering.Basic
 public import Mathlib.Topology.Covering.Deck
 public import Mathlib.Topology.Covering.Quotient
-public import Mathlib.Topology.CoveringDimension
 public import Mathlib.Topology.CoveringDimension.Basic
 public import Mathlib.Topology.CoveringDimension.ClosedSwelling
 public import Mathlib.Topology.CoveringDimension.ClosedUnion
@@ -8103,7 +8102,6 @@ public import Mathlib.Topology.CoveringDimension.Embedding
 public import Mathlib.Topology.CoveringDimension.Euclidean
 public import Mathlib.Topology.CoveringDimension.GeneralPosition
 public import Mathlib.Topology.CoveringDimension.InductiveDimension
-public import Mathlib.Topology.CoveringDimension.Manifold
 public import Mathlib.Topology.CoveringDimension.Partition
 public import Mathlib.Topology.Defs.Basic
 public import Mathlib.Topology.Defs.Filter

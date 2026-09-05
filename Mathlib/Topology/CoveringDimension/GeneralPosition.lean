@@ -23,12 +23,10 @@ the affine spans of all small subfamilies of a fixed finite family. -/
 lemma exists_mem_ball_avoiding_small_affineSpans
     {ι : Type*} {N : ℕ} (z : ι → EuclideanSpace ℝ (Fin N))
     (s : Finset ι) (c : EuclideanSpace ℝ (Fin N)) {ε : ℝ} (hε : 0 < ε) :
-    ∃ p ∈ Metric.ball c ε, ∀ u : Finset ι, u ⊆ s → u.card ≤ N →
-      p ∉ affineSpan ℝ (u.image z : Set (EuclideanSpace ℝ (Fin N))) := by
+    ∃ p ∈ Metric.ball c ε, ∀ u : Finset ι, u ⊆ s → u.card ≤ N → p ∉ affineSpan ℝ (u.image z) := by
   let candidates := s.powerset.filter fun u ↦ u.card ≤ N
   let forbidden : Set (EuclideanSpace ℝ (Fin N)) :=
-    ⋃ u : {u // u ∈ candidates},
-      (affineSpan ℝ (u.1.image z : Set (EuclideanSpace ℝ (Fin N))) : Set _)
+    ⋃ u : candidates, (affineSpan ℝ (u.1.image z : Set (EuclideanSpace ℝ (Fin N))) : Set _)
   let μ : Measure (EuclideanSpace ℝ (Fin N)) :=
     (Module.finBasis ℝ (EuclideanSpace ℝ (Fin N))).addHaar
   -- Each candidate affine span is proper, hence Haar-null; the finite union is null.
