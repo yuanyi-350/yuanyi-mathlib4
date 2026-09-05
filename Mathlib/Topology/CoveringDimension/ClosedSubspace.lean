@@ -126,28 +126,9 @@ private lemma restrictedAmbientRefinementSpec
     exact ⟨hpreimage_nonempty, B, hBℬ, hpreimage_eq⟩
   have hrestricted_order :
       (nonemptyPreimageFamily (Subtype.val : Y → X) ℬ).HasOrderLE k := by
-    -- Incident restricted members lie in the image of the incident ambient members.
-    rw [Set.hasOrderLE_iff] at hℬ_order ⊢
-    intro y
-    let pullback : Set X → Set Y := fun B ↦ (Subtype.val : Y → X) ⁻¹' B
-    have hincident :
-        {V ∈ nonemptyPreimageFamily (Subtype.val : Y → X) ℬ | y ∈ V} ⊆
-          pullback '' {B ∈ ℬ | (y : X) ∈ B} := by
-      intro V hV
-      rw [nonemptyPreimageFamily] at hV
-      obtain ⟨⟨_, B, hBℬ, hV_preimage⟩, hyV⟩ := hV
-      have hy_preimage : y ∈ (Subtype.val : Y → X) ⁻¹' B :=
-        hV_preimage ▸ hyV
-      have hyB : (y : X) ∈ B := by
-        exact hy_preimage
-      exact ⟨B, ⟨hBℬ, hyB⟩, hV_preimage.symm⟩
-    calc
-      Set.encard {V ∈ nonemptyPreimageFamily (Subtype.val : Y → X) ℬ | y ∈ V} ≤
-          Set.encard (pullback '' {B ∈ ℬ | (y : X) ∈ B}) :=
-        Set.encard_mono hincident
-      _ ≤ Set.encard {B ∈ ℬ | (y : X) ∈ B} :=
-        Set.encard_image_le pullback _
-      _ ≤ k := hℬ_order y
+    apply (hℬ_order.preimage (Subtype.val : Y → X)).of_subset
+    rintro V ⟨_, B, hBℬ, rfl⟩
+    exact ⟨B, hBℬ, rfl⟩
   -- Package the three restriction properties behind the stable family interface.
   exact ⟨hrestricted_refines, hrestricted_cover, hrestricted_order⟩
 

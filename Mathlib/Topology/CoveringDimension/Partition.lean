@@ -8,6 +8,8 @@ module
 public import Mathlib.Topology.CoveringDimension.FiniteClosedCover
 public import Mathlib.Topology.CoveringDimension.Basic
 public import Mathlib.Topology.CoveringDimension.Shrinking
+import Mathlib.Analysis.Convex.Combination
+import Mathlib.Analysis.Normed.Module.Convex
 public import Mathlib.Topology.Baire.CompleteMetrizable
 public import Mathlib.Topology.ContinuousMap.Compact
 public import Mathlib.Topology.Metrizable.Basic
@@ -51,57 +53,18 @@ lemma existsFiniteIndexedShrinkingRefinement
         (∀ i, (B i : Set X) ⊆ p i) ∧
         ∀ i, closure (C i : Set X) ⊆ B i := by
   classical
-  -- First obtain an order-bounded open refinement, then retain a finite subcover.
+  -- Apply the finite shrinking construction to an order-bounded refinement.
   obtain ⟨ℬ, hℬrefines, hℬcover, hℬorder⟩ :=
-    (hasCoveringDimensionLE_iff_pointwise X n).mp h 𝒜 h𝒜open h𝒜cover
-  have hℬopen : ∀ U ∈ ℬ, IsOpen U :=
-    (isOpenRefinement_iff.mp hℬrefines).2
-  have hsubcover : Set.univ ⊆ ⋃ U : ℬ, U.1 := by
-    intro x _
-    have hx : x ∈ ⋃₀ ℬ := hℬcover.symm ▸ Set.mem_univ x
-    rw [Set.mem_sUnion] at hx
-    obtain ⟨U, hUℬ, hxU⟩ := hx
-    exact Set.mem_iUnion.mpr ⟨⟨U, hUℬ⟩, hxU⟩
-  obtain ⟨t, htcover⟩ := isCompact_univ.elim_finite_subcover
-    (fun U : ℬ ↦ U.1) (fun U ↦ hℬopen U.1 U.2) hsubcover
-  -- Index by the selected refinement members, preserving their membership proofs.
-  let ι := {U : ℬ // U ∈ t}
-  letI : Finite ι := Finite.of_fintype ι
-  let B : ι → Opens X := fun i ↦ ⟨i.1.1, hℬopen i.1.1 i.1.2⟩
-  have hBcover : IsOpenCover B := by
-    apply IsOpenCover.of_sets
-    apply Set.eq_univ_of_forall
-    intro x
-    have hx : x ∈ ⋃ U ∈ t, U.1 := htcover (Set.mem_univ x)
-    rw [Set.mem_iUnion] at hx ⊢
-    obtain ⟨U, hx⟩ := hx
-    rw [Set.mem_iUnion] at hx
-    obtain ⟨hUt, hxU⟩ := hx
-    exact ⟨⟨U, hUt⟩, hxU⟩
-  have hBorder : Set.range (fun i ↦ (B i : Set X)) |>.HasOrderLE (n + 1) := by
-    -- Passing to a finite subfamily can only decrease point multiplicity.
-    rw [Set.hasOrderLE_iff]
-    intro x
-    apply (Set.encard_le_encard ?_).trans (hℬorder x)
-    rintro U ⟨⟨i, rfl⟩, hxU⟩
-    exact ⟨i.1.2, hxU⟩
+    h 𝒜 h𝒜open h𝒜cover
+  obtain ⟨ι, hι, B, C, hBcover, hCcover, hBinjective, hBmem, hCclosure⟩ :=
+    existsFiniteIndexedShrinkingSubcover ℬ (fun U hU ↦ hℬrefines.isOpen_of_mem hU) hℬcover
   -- Choose an original-cover parent for each retained refinement member.
   have hparent (i : ι) : ∃ A : 𝒜, (B i : Set X) ⊆ A := by
-    obtain ⟨A, hA𝒜, hBA⟩ := hℬrefines.subset_of_mem i.1.2
+    obtain ⟨A, hA𝒜, hBA⟩ := hℬrefines.subset_of_mem (hBmem i)
     exact ⟨⟨A, hA𝒜⟩, hBA⟩
   choose p hp using hparent
-  -- Normality provides an indexed shrinking whose closures remain in the selected opens.
-  have hBfinite : PointFinite (fun i ↦ (B i : Set X)) := by
-    rw [pointFinite_iff]
-    intro x
-    exact Set.toFinite _
-  obtain ⟨C, hCcover, hCclosure⟩ := hBcover.exists_shrinking hBfinite
-  have hBinjective : Function.Injective (fun i ↦ (B i : Set X)) := by
-    intro i j hij
-    apply Subtype.ext
-    apply Subtype.ext
-    exact hij
-  exact ⟨ι, inferInstance, B, C, p, hBcover, hCcover, hBorder, hBinjective, hp, hCclosure⟩
+  exact ⟨ι, hι, B, C, p, hBcover, hCcover,
+    hℬorder.of_subset (Set.range_subset_iff.mpr hBmem), hBinjective, hp, hCclosure⟩
 
 /-- Helper for Definition 50.8: a real-valued map has a buffered fine zero cover of order
 `q` when one finite open family has order at most `q` throughout a neighborhood of its zero
@@ -125,9 +88,7 @@ lemma isOpen_setOf_hasBufferedFineZeroCover
   obtain ⟨ε, hε, 𝒰, h𝒰finite, h𝒰open, h𝒰cover, h𝒰order, h𝒰diameter⟩ := hf
   apply Filter.mem_of_superset (Metric.ball_mem_nhds f (half_pos hε))
   intro g hg
-  refine ⟨ε / 2, half_pos hε, 𝒰, h𝒰finite, h𝒰open, ?_, ?_, h𝒰diameter⟩
-  · intro x hx
-    apply h𝒰cover x
+  have hsmall (x : X) (hx : |g x| < ε / 2) : |f x| < ε := by
     have hdist : dist (g x) (f x) < ε / 2 :=
       lt_of_le_of_lt (ContinuousMap.dist_apply_le_dist x) (Metric.mem_ball.mp hg)
     have hdistAbs : |f x - g x| < ε / 2 := by
@@ -138,18 +99,8 @@ lemma isOpen_setOf_hasBufferedFineZeroCover
         exact abs_add_le _ _
       _ < ε / 2 + ε / 2 := add_lt_add hdistAbs hx
       _ = ε := by ring
-  · intro x hx
-    apply h𝒰order x
-    have hdist : dist (g x) (f x) < ε / 2 :=
-      lt_of_le_of_lt (ContinuousMap.dist_apply_le_dist x) (Metric.mem_ball.mp hg)
-    have hdistAbs : |f x - g x| < ε / 2 := by
-      simpa only [Real.dist_eq, abs_sub_comm] using hdist
-    calc
-      |f x| ≤ |f x - g x| + |g x| := by
-        nth_rw 1 [← sub_add_cancel (f x) (g x)]
-        exact abs_add_le _ _
-      _ < ε / 2 + ε / 2 := add_lt_add hdistAbs hx
-      _ = ε := by ring
+  exact ⟨ε / 2, half_pos hε, 𝒰, h𝒰finite, h𝒰open,
+    fun x hx ↦ h𝒰cover x (hsmall x hx), fun x hx ↦ h𝒰order x (hsmall x hx), h𝒰diameter⟩
 
 /-- Helper for Definition 50.8: a convex weighted average remains uniformly close to a point
 when every vertex carrying nonzero weight is uniformly close to that point. -/
@@ -158,45 +109,8 @@ lemma dist_weightedSum_lt
     (hw_nonnegative : ∀ i, 0 ≤ w i) (hw_sum : ∑ i, w i = 1)
     (hz : ∀ i, w i ≠ 0 → dist (z i) p < r) :
     dist (∑ i, w i * z i) p < r := by
-  classical
-  have hpositive : ∃ i, 0 < w i := by
-    by_contra h
-    push Not at h
-    have hzero : ∀ i, w i = 0 := fun i ↦ (h i).antisymm (hw_nonnegative i)
-    simp only [hzero, Finset.sum_const_zero] at hw_sum
-    norm_num at hw_sum
-  rw [Real.dist_eq]
-  have hrewrite : (∑ i, w i * z i) - p = ∑ i, w i * (z i - p) := by
-    calc
-      (∑ i, w i * z i) - p = (∑ i, w i * z i) - (∑ i, w i) * p := by
-        rw [hw_sum, one_mul]
-      _ = ∑ i, (w i * z i - w i * p) := by
-        rw [Finset.sum_sub_distrib, Finset.sum_mul]
-      _ = ∑ i, w i * (z i - p) := by
-        apply Finset.sum_congr rfl
-        intro i _
-        ring
-  rw [hrewrite]
-  refine lt_of_le_of_lt (Finset.abs_sum_le_sum_abs _ _) ?_
-  calc
-    ∑ i, |w i * (z i - p)| < ∑ i, w i * r := by
-      apply Finset.sum_lt_sum
-      · intro i _
-        by_cases hi : w i = 0
-        · simp only [hi, zero_mul, abs_zero, le_refl]
-        · rw [abs_mul, abs_of_nonneg (hw_nonnegative i)]
-          have hvertex : |z i - p| ≤ r := by
-            simpa only [Real.dist_eq] using (hz i hi).le
-          exact mul_le_mul_of_nonneg_left
-            hvertex (hw_nonnegative i)
-      · obtain ⟨i, hi⟩ := hpositive
-        refine ⟨i, Finset.mem_univ i, ?_⟩
-        rw [abs_mul, abs_of_nonneg hi.le]
-        have hvertex : |z i - p| < r := by
-          simpa only [Real.dist_eq] using hz i (ne_of_gt hi)
-        exact mul_lt_mul_of_pos_left
-          hvertex hi
-    _ = r := by rw [← Finset.sum_mul, hw_sum, one_mul]
+  simpa only [finsum_eq_sum_of_fintype, Metric.mem_ball, smul_eq_mul] using
+    (convex_ball p r).finsum_mem hw_nonnegative (by rwa [finsum_eq_sum_of_fintype]) hz
 
 /-- Helper for Definition 50.8: a sufficiently small weighted sum of nonzero real vertices has
 an active vertex of each sign. -/
@@ -270,8 +184,8 @@ lemma dense_setOf_hasBufferedFineZeroCover
     exact ⟨Metric.mem_ball_self (half_pos hδ), Metric.mem_ball_self hrquarter⟩
   obtain ⟨ι, hιfinite, B, _, p, hBcover, _, hBorder, hBinjective, hBp, _⟩ :=
     existsFiniteIndexedShrinkingRefinement h 𝒜 h𝒜open h𝒜cover
-  letI : Finite ι := hιfinite
-  letI : Fintype ι := Fintype.ofFinite ι
+  let _ : Finite ι := hιfinite
+  let _ : Fintype ι := Fintype.ofFinite ι
   have hιnonempty : Nonempty ι := by
     have hx : Classical.choice (inferInstance : Nonempty X) ∈ ⋃ i, (B i : Set X) :=
       hBcover.iSup_set_eq_univ.symm ▸ Set.mem_univ _
@@ -523,7 +437,7 @@ lemma existsOpenPartition_of_hasCoveringDimensionLE
   classical
   cases isEmpty_or_nonempty X with
   | inl hX =>
-      letI : IsEmpty X := hX
+      let _ : IsEmpty X := hX
       refine ⟨∅, isOpen_empty, ?_, by simp, ?_⟩
       · intro x _
         exact isEmptyElim x
@@ -534,8 +448,8 @@ lemma existsOpenPartition_of_hasCoveringDimensionLE
             exact hasCoveringDimensionLE_of_isEmpty
               (Set.isEmpty_coe_sort.mpr frontier_empty) q
   | inr hX =>
-      letI : Nonempty X := hX
-      letI : MetricSpace X := metrizableSpaceMetric X
+      let _ : Nonempty X := hX
+      let _ : MetricSpace X := metrizableSpaceMetric X
       obtain ⟨f, hfK, hfF, hfine⟩ :=
         exists_zeroFiberSeparator_with_fineCovers h hK hF hKF
       let V : Set X := {x | f x < 0}

@@ -119,6 +119,14 @@ theorem mono {X : Type u} {𝒜 : Set (Set X)} {n k : ℕ}
     (h : 𝒜.HasOrderLE n) (hnk : n ≤ k) : 𝒜.HasOrderLE k :=
   fun x ↦ (h x).trans (by simpa using hnk)
 
+/-- Passing to a subfamily does not increase its order. -/
+theorem of_subset {X : Type u} {𝒜 ℬ : Set (Set X)} {n : ℕ}
+    (h : 𝒜.HasOrderLE n) (hℬ : ℬ ⊆ 𝒜) : ℬ.HasOrderLE n := by
+  intro x
+  apply (Set.encard_mono ?_).trans (h x)
+  intro U hU
+  exact ⟨hℬ hU.1, hU.2⟩
+
 /-- Taking preimages of every member of a family does not increase its order. -/
 theorem preimage {Y : Type u} {Z : Type v} {𝒞 : Set (Set Z)} {n : ℕ}
     (h𝒞 : 𝒞.HasOrderLE n) (f : Y → Z) :
@@ -358,19 +366,9 @@ theorem Homeomorph.hasCoveringDimensionLE_of
     rw [Set.mem_sUnion] at hy ⊢
     obtain ⟨U, hU, hyU⟩ := hy
     exact ⟨e '' U, ⟨U, hU, rfl⟩, ⟨e.symm y, hyU, e.apply_symm_apply y⟩⟩
-  · intro y
-    let incident : Set (Set A) := {U ∈ 𝒯 | e.symm y ∈ U}
-    have hincident : {V ∈ 𝒯' | y ∈ V} = (fun U : Set A ↦ e '' U) '' incident := by
-      ext V
-      constructor
-      · rintro ⟨⟨U, hU, rfl⟩, hyU⟩
-        obtain ⟨x, hxU, hxy⟩ := hyU
-        have hx : x = e.symm y := by simpa using congrArg e.symm hxy
-        exact ⟨U, ⟨hU, hx ▸ hxU⟩, rfl⟩
-      · rintro ⟨U, ⟨hU, hyU⟩, rfl⟩
-        exact ⟨⟨U, hU, rfl⟩, ⟨e.symm y, hyU, e.apply_symm_apply y⟩⟩
-    rw [hincident, e.injective.image_injective.encard_image]
-    exact h𝒯order (e.symm y)
+  · change 𝒯'.HasOrderLE (n + 1)
+    simpa only [𝒯', e.image_eq_preimage_symm] using
+      (Set.hasOrderLE_iff.mpr h𝒯order).preimage e.symm
 
 /-- Covering-dimension bounds are preserved by homeomorphisms. -/
 protected theorem Homeomorph.hasCoveringDimensionLE

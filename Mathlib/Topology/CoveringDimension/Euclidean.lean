@@ -355,16 +355,8 @@ lemma exists_subtypeEuclideanCover_order {N : ℕ}
     have hBpullback : B ∈ pullback := ⟨V, hV𝒸, rfl⟩
     exact ⟨B, ⟨hBpullback, ⟨x, hxB⟩⟩, hxB⟩
   · -- Filtering out empty members cannot increase point multiplicity.
-    rw [Set.hasOrderLE_iff]
-    intro x
-    have hpullbackOrder : pullback.HasOrderLE (N + 1) := by
-      exact h𝒸order.preimage ((↑) : X → EuclideanSpace ℝ (Fin N))
-    calc
-      Set.encard {B ∈ ℬ | x ∈ B} ≤ Set.encard {B ∈ pullback | x ∈ B} := by
-        apply Set.encard_le_encard
-        intro B hB
-        exact ⟨hB.1.1, hB.2⟩
-      _ ≤ N + 1 := (Set.hasOrderLE_iff.mp hpullbackOrder) x
+    exact (h𝒸order.preimage ((↑) : X → EuclideanSpace ℝ (Fin N))).of_subset
+      fun _ hB ↦ hB.1
   · -- The subtype inclusion is an isometry, so boundedness and diameter bounds descend.
     intro B hB
     have hBpullback : B ∈ pullback := hB.1

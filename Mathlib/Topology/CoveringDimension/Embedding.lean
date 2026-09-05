@@ -7,6 +7,7 @@ module
 
 public import Mathlib.Topology.CoveringDimension.GeneralPosition
 public import Mathlib.Topology.CoveringDimension.Basic
+import Mathlib.Analysis.Convex.Combination
 public import Mathlib.Analysis.InnerProductSpace.PiL2
 public import Mathlib.Topology.Baire.CompleteMetrizable
 public import Mathlib.Topology.Compactness.Compact
@@ -297,41 +298,8 @@ private lemma weightedAverage_dist_lt
     (hw_nonneg : ∀ i, 0 ≤ w i) (hw_sum : ∑ i, w i = 1)
     (hz : ∀ i, w i ≠ 0 → dist (z i) p < r) :
     dist (∑ i, w i • z i) p < r := by
-  classical
-  -- The weights summing to one ensure that at least one coefficient is positive.
-  have hpos : ∃ i, 0 < w i := by
-    by_contra h
-    push Not at h
-    have hzero : ∀ i, w i = 0 := fun i ↦ (h i).antisymm (hw_nonneg i)
-    simp [hzero] at hw_sum
-  rw [dist_eq_norm]
-  -- Rewrite the displacement from `p` as the weighted sum of displacements.
-  have hrewrite : (∑ i, w i • z i) - p = ∑ i, w i • (z i - p) := by
-    calc
-      (∑ i, w i • z i) - p = (∑ i, w i • z i) - (∑ i, w i) • p := by
-        rw [hw_sum, one_smul]
-      _ = ∑ i, (w i • z i - w i • p) := by
-        rw [Finset.sum_sub_distrib, Finset.sum_smul]
-      _ = ∑ i, w i • (z i - p) := by simp only [smul_sub]
-  rw [hrewrite]
-  refine lt_of_le_of_lt (norm_sum_le _ _) ?_
-  -- Each summand satisfies the weak estimate, and a positive weight gives one
-  -- strict estimate, so the total is strictly below `r`.
-  calc
-    ∑ i, ‖w i • (z i - p)‖ < ∑ i, w i * r := by
-      apply Finset.sum_lt_sum
-      · intro i _
-        by_cases hi : w i = 0
-        · simp [hi]
-        · rw [norm_smul, Real.norm_eq_abs, abs_of_nonneg (hw_nonneg i)]
-          exact mul_le_mul_of_nonneg_left
-            (by simpa [dist_eq_norm] using (hz i hi).le) (hw_nonneg i)
-      · obtain ⟨i, hi⟩ := hpos
-        refine ⟨i, Finset.mem_univ i, ?_⟩
-        rw [norm_smul, Real.norm_eq_abs, abs_of_nonneg hi.le]
-        exact mul_lt_mul_of_pos_left
-          (by simpa [dist_eq_norm] using hz i (ne_of_gt hi)) hi
-    _ = r := by rw [← Finset.sum_mul, hw_sum, one_mul]
+  simpa only [finsum_eq_sum_of_fintype, Metric.mem_ball] using
+    (convex_ball p r).finsum_mem hw_nonneg (by rwa [finsum_eq_sum_of_fintype]) hz
 
 open scoped Classical in
 /-- Helper for Theorem 50.4: the barycentric map is uniformly close when every

@@ -86,39 +86,10 @@ lemma existsFiniteIndexedShrinkingOfOpenCover
       IsOpenCover B ∧ IsOpenCover C ∧
         (∀ i, (B i : Set X) ⊆ p i) ∧
         ∀ i, closure (C i : Set X) ⊆ B i := by
-  classical
-  -- Compactness first selects finitely many members of the original cover itself.
-  have hsubcover : Set.univ ⊆ ⋃ U : 𝒜, U.1 := by
-    intro x _
-    have hx : x ∈ ⋃₀ 𝒜 := h𝒜cover.symm ▸ Set.mem_univ x
-    obtain ⟨U, hU𝒜, hxU⟩ := Set.mem_sUnion.mp hx
-    exact Set.mem_iUnion.mpr ⟨⟨U, hU𝒜⟩, hxU⟩
-  obtain ⟨t, htcover⟩ := isCompact_univ.elim_finite_subcover
-    (fun U : 𝒜 ↦ U.1) (fun U ↦ h𝒜open U.1 U.2) hsubcover
-  -- Index the selected members and remember their tautological parents in the input cover.
-  let ι := {U : 𝒜 // U ∈ t}
-  let _ : Finite ι := Finite.of_fintype ι
-  let B : ι → Opens X := fun i ↦ ⟨i.1.1, h𝒜open i.1.1 i.1.2⟩
-  let p : ι → 𝒜 := fun i ↦ i.1
-  have hBcover : IsOpenCover B := by
-    apply IsOpenCover.of_sets
-    apply Set.eq_univ_of_forall
-    intro x
-    have hx : x ∈ ⋃ U ∈ t, U.1 := htcover (Set.mem_univ x)
-    rw [Set.mem_iUnion] at hx ⊢
-    obtain ⟨U, hx⟩ := hx
-    rw [Set.mem_iUnion] at hx
-    obtain ⟨hUt, hxU⟩ := hx
-    exact ⟨⟨U, hUt⟩, hxU⟩
-  -- Finite indexation makes the selected cover point-finite, so normality supplies a shrinking.
-  have hBfinite : PointFinite (fun i ↦ (B i : Set X)) := by
-    rw [pointFinite_iff]
-    intro x
-    exact Set.toFinite _
-  obtain ⟨C, hCcover, hCclosure⟩ := hBcover.exists_shrinking hBfinite
-  refine ⟨ι, inferInstance, B, C, p, hBcover, hCcover, ?_, hCclosure⟩
-  intro i
-  exact Set.Subset.rfl
+  obtain ⟨ι, hι, B, C, hBcover, hCcover, _, hBmem, hCclosure⟩ :=
+    existsFiniteIndexedShrinkingSubcover 𝒜 h𝒜open h𝒜cover
+  exact ⟨ι, hι, B, C, fun i ↦ ⟨B i, hBmem i⟩, hBcover, hCcover,
+    fun _ ↦ Set.Subset.rfl, hCclosure⟩
 
 /-- Helper for Definition 50.8: a finite linearly ordered open cover decomposes away from its
 frontiers into pairwise disjoint open cores, each contained in its original member. -/
@@ -183,31 +154,8 @@ lemma existsPairwiseDisjointOpenCores
   classical
   let _ : Fintype ι := Fintype.ofFinite ι
   let e : ι ≃ Fin (Fintype.card ι) := Fintype.equivFin ι
-  let W : Fin (Fintype.card ι) → Opens X := fun j ↦ V (e.symm j)
-  have hWcover : IsOpenCover W := by
-    apply IsOpenCover.of_sets
-    ext x
-    constructor
-    · intro _
-      exact Set.mem_univ x
-    · intro _
-      have hx : x ∈ ⋃ i, (V i : Set X) := hVcover.iSup_set_eq_univ.symm ▸ Set.mem_univ x
-      obtain ⟨i, hxi⟩ := Set.mem_iUnion.mp hx
-      exact Set.mem_iUnion.mpr ⟨e i, by simpa [W] using hxi⟩
-  obtain ⟨D, hDopen, hDV, hDdisjoint, hDcover⟩ :=
-    existsPairwiseDisjointOrderedOpenCores W hWcover
-  let E : ι → Set X := fun i ↦ D (e i)
-  refine ⟨E, fun i ↦ hDopen (e i), fun i ↦ ?_, ?_, ?_⟩
-  · simpa [E, W] using hDV (e i)
-  · intro i j hij
-    exact hDdisjoint fun heij ↦ hij (e.injective heij)
-  · intro x hx
-    have hxW : x ∈ (⋃ j, frontier (W j : Set X))ᶜ := by
-      intro hxfrontier
-      obtain ⟨j, hxj⟩ := Set.mem_iUnion.mp hxfrontier
-      exact hx <| Set.mem_iUnion.mpr ⟨e.symm j, by simpa [W] using hxj⟩
-    obtain ⟨j, hxj⟩ := Set.mem_iUnion.mp (hDcover hxW)
-    exact Set.mem_iUnion.mpr ⟨e.symm j, by simpa [E] using hxj⟩
+  let _ : LinearOrder ι := LinearOrder.lift' e e.injective
+  exact existsPairwiseDisjointOrderedOpenCores V hVcover
 
 /-- Helper for Definition 50.8: adjoining a pairwise-disjoint indexed family increases the order
 of an existing indexed family by at most one. -/

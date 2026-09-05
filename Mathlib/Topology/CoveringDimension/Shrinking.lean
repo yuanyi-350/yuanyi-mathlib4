@@ -32,3 +32,24 @@ theorem exists_shrinking {ι : Type u} {X : Type v} [TopologicalSpace X] [Normal
   exact ⟨fun i ↦ ⟨V i, hVopen i⟩, IsOpenCover.of_sets hVopen hVcover, hVclosure⟩
 
 end TopologicalSpace.IsOpenCover
+
+/-- An open cover of a compact normal space has a finite subcover, indexed without repetitions,
+and an open shrinking whose closures lie in the selected members. -/
+theorem existsFiniteIndexedShrinkingSubcover
+    {X : Type u} [TopologicalSpace X] [CompactSpace X] [NormalSpace X]
+    (𝒜 : Set (Set X)) (hopen : ∀ U ∈ 𝒜, IsOpen U) (hcover : ⋃₀ 𝒜 = Set.univ) :
+    ∃ (ι : Type u) (_ : Finite ι) (B C : ι → Opens X),
+      IsOpenCover B ∧ IsOpenCover C ∧
+      Function.Injective (fun i ↦ (B i : Set X)) ∧
+      (∀ i, (B i : Set X) ∈ 𝒜) ∧
+      ∀ i, closure (C i : Set X) ⊆ B i := by
+  classical
+  let A : 𝒜 → Opens X := fun U ↦ ⟨U.1, hopen U.1 U.2⟩
+  have hA : IsOpenCover A :=
+    IsOpenCover.of_sets _ (by simpa only [← Set.sUnion_eq_iUnion] using hcover)
+  obtain ⟨t, ht⟩ := hA.exists_finite_of_compactSpace
+  let B : t → Opens X := fun i ↦ A i.1
+  have hB : IsOpenCover B := ht
+  obtain ⟨C, hC, hCB⟩ := hB.exists_shrinking (pointFinite_iff.mpr fun _ ↦ Set.toFinite _)
+  exact ⟨t, inferInstance, B, C, hB, hC,
+    Subtype.val_injective.comp Subtype.val_injective, fun i ↦ i.1.2, hCB⟩

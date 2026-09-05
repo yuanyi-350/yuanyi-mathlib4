@@ -20,18 +20,8 @@ has the same covering dimension as `A`. -/
 private lemma coveringDimension_nestedSubtype
     {X : Type u} [TopologicalSpace X] {A B : Set X} (hAB : A ⊆ B) :
     dim ((Subtype.val : B → X) ⁻¹' A) = dim A := by
-  -- Realize the nested subtype as the range of the canonical inclusion of `A` into `B`.
-  let P : Set B := (Subtype.val : B → X) ⁻¹' A
-  let inc : A → B := Set.inclusion hAB
-  let f : A → P := fun a ↦ ⟨inc a, a.2⟩
-  have hinc : Topology.IsEmbedding inc := Topology.IsEmbedding.inclusion hAB
-  have hf : Topology.IsEmbedding f := hinc.codRestrict P fun a ↦ a.2
-  have hfsurjective : Function.Surjective f := by
-    intro p
-    refine ⟨⟨p.1.1, p.2⟩, ?_⟩
-    apply Subtype.ext
-    exact Set.inclusion_right hAB p.1 p.2
-  exact (hf.toHomeomorphOfSurjective hfsurjective).coveringDimension_congr.symm
+  exact (Topology.IsEmbedding.subtypeVal.homeomorphOfSubsetRange
+    (by simpa using hAB)).coveringDimension_congr
 
 /-- Helper for Corollary 50.3: the covering dimension of the union of two
 closed subsets is the maximum of their covering dimensions. -/
