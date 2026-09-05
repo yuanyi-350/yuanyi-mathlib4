@@ -12,6 +12,8 @@ import Mathlib.Data.Fintype.Lattice
 
 public section
 
+open TopologicalSpace
+
 open scoped CoveringDimension
 
 universe u v
@@ -19,99 +21,62 @@ universe u v
 /-- Helper for Theorem 50.2: an open cover can be refined with controlled order at
 the points of a closed subspace whose covering dimension is bounded. -/
 private lemma existsOpenRefinementWithOrderOnClosedSet
-    {X : Type u} [TopologicalSpace X] {S : Set X} {n : ℕ}
+    {X : Type u} [TopologicalSpace X] {S : Set X} {n : ℕ} {ι : Type v}
     (hSclosed : IsClosed S) (hSdim : HasCoveringDimensionLE S n)
-    (𝒜 : Set (Set X)) (h𝒜open : ∀ A ∈ 𝒜, IsOpen A)
-    (h𝒜cover : ⋃₀ 𝒜 = Set.univ) :
-    ∃ ℬ : Set (Set X),
-      IsCofinalFor ℬ 𝒜 ∧ (∀ B ∈ ℬ, IsOpen B) ∧ ⋃₀ ℬ = Set.univ ∧
-        ∀ s : S, Set.encard {B ∈ ℬ | s.1 ∈ B} ≤ (n + 1 : ℕ) := by
+    (A : ι → Opens X) (hA : IsOpenCover A) :
+    ∃ (κ : Type (max u v)) (B : κ → Opens X),
+      IsOpenCover B ∧ IsCofinalFor (Set.range B) (Set.range A) ∧
+        ∀ s : S, Set.encard {U ∈ Set.range (fun i ↦ (B i : Set X)) | s.1 ∈ U} ≤
+          (n + 1 : ℕ) := by
   classical
-  -- Restrict the ambient cover to `S` and use its covering-dimension bound there.
-  let traceCover : Set (Set S) :=
-    (fun A : Set X ↦ ((↑) : S → X) ⁻¹' A) '' 𝒜
-  have htraceOpen : ∀ A ∈ traceCover, IsOpen A := by
-    rintro A ⟨U, hU, rfl⟩
-    exact (h𝒜open U hU).preimage continuous_subtype_val
-  have htraceCover : ⋃₀ traceCover = Set.univ := by
-    simp only [traceCover, Set.sUnion_image, ← Set.preimage_sUnion, h𝒜cover,
-      Set.preimage_univ]
-  obtain ⟨traceRefinement, hrefines, hrefinementOpen, hrefinementCover, hrefinementOrder⟩ :=
-    (hasCoveringDimensionLE_iff S n).mp hSdim traceCover htraceOpen htraceCover
-  -- Choose an original parent and an ambient open representative for each trace member.
-  have hparentExists (B : traceRefinement) :
-      ∃ A : 𝒜, (B.1 : Set S) ⊆ ((↑) : S → X) ⁻¹' (A.1 : Set X) := by
-    obtain ⟨T, hT, hBT⟩ := hrefines B.2
-    obtain ⟨A, hA, rfl⟩ := hT
-    exact ⟨⟨A, hA⟩, hBT⟩
-  choose parent hparent using hparentExists
-  have hambientExists (B : traceRefinement) :
-      ∃ U : Set X, IsOpen U ∧ ((↑) : S → X) ⁻¹' U = (B.1 : Set S) := by
-    exact isOpen_induced_iff.mp (hrefinementOpen B.1 B.2)
-  choose ambient hambientOpen hambientTrace using hambientExists
-  let extended : traceRefinement → Set X :=
-    fun B ↦ ambient B ∩ (parent B : Set X)
-  let outside : 𝒜 → Set X := fun A ↦ (A : Set X) \ S
-  let ℬ : Set (Set X) := Set.range (Sum.elim extended outside)
-  refine ⟨ℬ, ?_, ?_, ?_, ?_⟩
-  · -- Intersecting with the chosen parent preserves openness and refinement.
-    rintro V ⟨j, rfl⟩
-    cases j with
-    | inl B =>
-        exact ⟨parent B, (parent B).2, Set.inter_subset_right⟩
-    | inr A =>
-        exact ⟨A, A.2, Set.sdiff_subset⟩
-  · rintro V ⟨j, rfl⟩
-    cases j with
-    | inl B =>
-        exact (hambientOpen B).inter (h𝒜open (parent B) (parent B).2)
-    | inr A =>
-        exact (h𝒜open A A.2).sdiff hSclosed
-  · -- Trace members cover `S`, while the original members minus `S` cover its complement.
+  let f : C(S, X) := ⟨Subtype.val, continuous_subtype_val⟩
+  obtain ⟨κ, V, hV, hVA, hVorder⟩ :=
+    hSdim.exists_refinement (fun i ↦ (A i).comap f) (hA.comap f)
+  -- Extend each distinct trace member inside a parent from the original cover.
+  let 𝒱 := Set.range fun j ↦ (V j : Set S)
+  have hlift (T : 𝒱) :
+      ∃ (U : Opens X) (i : ι), f ⁻¹' (U : Set X) = T.1 ∧ U ≤ A i := by
+    obtain ⟨j, hj⟩ := T.2
+    obtain ⟨_, ⟨i, rfl⟩, hji⟩ := hVA (Set.mem_range_self j)
+    change (V j : Set S) ⊆ f ⁻¹' (A i : Set X) at hji
+    obtain ⟨U, hU, htrace⟩ := isOpen_induced_iff.mp (V j).isOpen
+    refine ⟨⟨U, hU⟩ ⊓ A i, i, ?_, inf_le_right⟩
+    change (Subtype.val ⁻¹' U) ∩ (f ⁻¹' (A i : Set X)) = T.1
+    rw [htrace, Set.inter_eq_left.mpr hji]
+    exact hj
+  choose extended parent htrace hparent using hlift
+  let outside (i : ι) : Opens X := ⟨(A i : Set X) \ S, (A i).isOpen.sdiff hSclosed⟩
+  let B := Sum.elim extended outside
+  refine ⟨𝒱 ⊕ ι, B, ?_, ?_, ?_⟩
+  · apply IsOpenCover.of_sets
     apply Set.eq_univ_of_forall
     intro x
-    rw [Set.mem_sUnion]
     by_cases hxS : x ∈ S
-    · let s : S := ⟨x, hxS⟩
-      have hs : s ∈ ⋃₀ traceRefinement :=
-        hrefinementCover.symm ▸ Set.mem_univ s
-      rw [Set.mem_sUnion] at hs
-      obtain ⟨B, hB, hsB⟩ := hs
-      let j : traceRefinement := ⟨B, hB⟩
-      have hsAmbient : x ∈ ambient j := by
-        have hsPreimage : s ∈ ((↑) : S → X) ⁻¹' ambient j := by
-          rw [hambientTrace j]
-          exact hsB
-        exact hsPreimage
-      have hsParent : x ∈ (parent j : Set X) := hparent j hsB
-      exact ⟨extended j, ⟨Sum.inl j, rfl⟩, hsAmbient, hsParent⟩
-    · have hx : x ∈ ⋃₀ 𝒜 := h𝒜cover.symm ▸ Set.mem_univ x
-      rw [Set.mem_sUnion] at hx
-      obtain ⟨A, hA, hxA⟩ := hx
-      let j : 𝒜 := ⟨A, hA⟩
-      exact ⟨outside j, ⟨Sum.inr j, rfl⟩, hxA, hxS⟩
-  · -- At a point of `S`, outside members disappear and each remaining member has one trace.
+    · obtain ⟨j, hj⟩ := hV.exists_mem ⟨x, hxS⟩
+      let T : 𝒱 := ⟨V j, Set.mem_range_self j⟩
+      apply Set.mem_iUnion.mpr ⟨Sum.inl T, ?_⟩
+      exact show (⟨x, hxS⟩ : S) ∈ f ⁻¹' (extended T : Set X) from
+        (htrace T).symm ▸ hj
+    · obtain ⟨i, hi⟩ := hA.exists_mem x
+      exact Set.mem_iUnion.mpr ⟨Sum.inr i, hi, hxS⟩
+  · rintro _ ⟨T | i, rfl⟩
+    · exact ⟨A (parent T), Set.mem_range_self _, hparent T⟩
+    · exact ⟨A i, Set.mem_range_self _, Set.sdiff_subset⟩
+  · -- Reindexing by distinct trace members ensures repeated indices are counted only once.
     intro s
-    let source : Set traceRefinement := {B | s ∈ (B.1 : Set S)}
-    have hsub : {V ∈ ℬ | s.1 ∈ V} ⊆ extended '' source := by
-      intro V hV
-      obtain ⟨j, rfl⟩ := hV.1
-      cases j with
-      | inl B =>
-          have hsTrace : s ∈ (B.1 : Set S) := by
-            rw [← hambientTrace B]
-            exact hV.2.1
-          exact ⟨B, hsTrace, rfl⟩
-      | inr A =>
-          exact (hV.2.2 s.2).elim
+    let source : Set 𝒱 := {T | s ∈ T.1}
+    have hsub : {U ∈ Set.range (fun i ↦ (B i : Set X)) | s.1 ∈ U} ⊆
+        (fun T ↦ (extended T : Set X)) '' source := by
+      rintro _ ⟨⟨T | i, rfl⟩, hs⟩
+      · exact ⟨T, show s ∈ T.1 from htrace T ▸ hs, rfl⟩
+      · exact (hs.2 s.2).elim
     calc
-      Set.encard {V ∈ ℬ | s.1 ∈ V}
-          ≤ Set.encard (extended '' source) := Set.encard_le_encard hsub
-      _ ≤ Set.encard source := Set.encard_image_le extended source
-      _ ≤ Set.encard {B ∈ traceRefinement | s ∈ B} :=
-        Set.encard_le_encard_of_injOn (fun B hB ↦ ⟨B.2, hB⟩)
+      _ ≤ Set.encard ((fun T ↦ (extended T : Set X)) '' source) := Set.encard_mono hsub
+      _ ≤ Set.encard source := Set.encard_image_le _ _
+      _ ≤ Set.encard {T ∈ 𝒱 | s ∈ T} :=
+        Set.encard_le_encard_of_injOn (fun T hT ↦ ⟨T.2, hT⟩)
           Subtype.val_injective.injOn
-      _ ≤ n + 1 := (Set.hasOrderLE_iff.mp hrefinementOrder) s
+      _ ≤ n + 1 := (Set.hasOrderLE_iff.mp hVorder) s
 
 namespace HasCoveringDimensionLE
 
@@ -127,16 +92,24 @@ theorem unionClosed
   classical
   rw [hasCoveringDimensionLE_iff]
   intro 𝒜 h𝒜open h𝒜cover
+  let A : 𝒜 → Opens X := fun U ↦ ⟨U.1, h𝒜open U.1 U.2⟩
+  have hA : IsOpenCover A :=
+    IsOpenCover.of_sets _ (by simpa only [← Set.sUnion_eq_iUnion] using h𝒜cover)
   -- First control multiplicity on `Y`, then refine once more to control it on `Z`.
-  obtain ⟨ℬ, hℬrefines, hℬopen, hℬcover, hℬorderY⟩ :=
-    existsOpenRefinementWithOrderOnClosedSet hYclosed hYdim 𝒜 h𝒜open h𝒜cover
-  obtain ⟨𝒞, h𝒞refines, h𝒞open, h𝒞cover, h𝒞orderZ⟩ :=
-    existsOpenRefinementWithOrderOnClosedSet hZclosed hZdim ℬ
-      hℬopen hℬcover
-  have hparentExists (C : 𝒞) :
-      ∃ B : ℬ, (C.1 : Set X) ⊆ (B.1 : Set X) := by
-    obtain ⟨B, hB, hCB⟩ := h𝒞refines C.2
-    exact ⟨⟨B, hB⟩, hCB⟩
+  obtain ⟨κ, B, hB, hBA, hℬorderY⟩ :=
+    existsOpenRefinementWithOrderOnClosedSet hYclosed hYdim A hA
+  obtain ⟨ι, C, hC, hCB, h𝒞orderZ⟩ :=
+    existsOpenRefinementWithOrderOnClosedSet hZclosed hZdim B hB
+  let ℬ := Set.range fun i ↦ (B i : Set X)
+  let 𝒞 := Set.range fun i ↦ (C i : Set X)
+  have hℬrefines : IsCofinalFor ℬ 𝒜 := by
+    rintro _ ⟨i, rfl⟩
+    obtain ⟨_, ⟨j, rfl⟩, hj⟩ := hBA (Set.mem_range_self i)
+    exact ⟨j.1, j.2, hj⟩
+  have hparentExists (U : 𝒞) : ∃ V : ℬ, U.1 ⊆ V.1 := by
+    obtain ⟨i, hi⟩ := U.2
+    obtain ⟨_, ⟨j, rfl⟩, hj⟩ := hCB (Set.mem_range_self i)
+    exact ⟨⟨B j, Set.mem_range_self j⟩, hi ▸ hj⟩
   choose parent hparent using hparentExists
   -- Group all second-stage members having the same first-stage parent.
   let grouped : ℬ → Set X := fun B ↦
@@ -152,19 +125,19 @@ theorem unionClosed
   have h𝒟open : ∀ D ∈ 𝒟, IsOpen D := by
     rintro D ⟨B, rfl⟩
     apply isOpen_iUnion
-    intro C
-    exact h𝒞open C.1.1 C.1.2
+    intro U
+    obtain ⟨i, hi⟩ := U.1.2
+    exact hi ▸ (C i).isOpen
   refine ⟨𝒟, h𝒟refinesℬ.trans hℬrefines, h𝒟open, ?_, ?_⟩
   · -- Each second-stage member lies in the group indexed by its chosen parent.
     apply Set.eq_univ_of_forall
     intro x
-    have hx : x ∈ ⋃₀ 𝒞 := h𝒞cover.symm ▸ Set.mem_univ x
-    rw [Set.mem_sUnion] at hx ⊢
-    obtain ⟨C, hC, hxC⟩ := hx
-    let j : 𝒞 := ⟨C, hC⟩
+    obtain ⟨i, hxi⟩ := hC.exists_mem x
+    rw [Set.mem_sUnion]
+    let j : 𝒞 := ⟨C i, Set.mem_range_self i⟩
     have hxGrouped : x ∈ grouped (parent j) := by
       rw [Set.mem_iUnion]
-      exact ⟨⟨j, rfl⟩, hxC⟩
+      exact ⟨⟨j, rfl⟩, hxi⟩
     exact ⟨grouped (parent j), ⟨parent j, rfl⟩, hxGrouped⟩
   · -- Over `Y` count parents; over `Z` count chosen second-stage witnesses.
     rw [Set.hasOrderLE_iff]

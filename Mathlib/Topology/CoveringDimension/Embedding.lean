@@ -287,7 +287,7 @@ lemma dense_setOf_separatesAtScale_of_nonempty
   let a : {U : Set X // U ∈ s} → X := fun i ↦ Classical.choose (hnonempty i.1 i.2)
   have ha_mem : ∀ i, a i ∈ i.1 := fun i ↦ Classical.choose_spec (hnonempty i.1 i.2)
   obtain ⟨z, hz_close, hz_affine⟩ :=
-    Theorem50_4.existsNearbyBoundedAffineIndependentFamily (fun i ↦ f (a i)) hrhalf
+    existsNearbyBoundedAffineIndependentFamily (fun i ↦ f (a i)) hrhalf
   have hz_affine' : ∀ t : Finset {U : Set X // U ∈ s}, t.card ≤ 2 * m + 2 →
       AffineIndependent ℝ (fun i : {i // i ∈ t} ↦ z i.1) := by
     intro t ht

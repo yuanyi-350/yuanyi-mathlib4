@@ -16,35 +16,7 @@ public import Mathlib.MeasureTheory.Measure.Haar.OfBasis
 
 public section
 
-namespace Theorem50_4
 open MeasureTheory
-
-/-- Helper for Theorem 50.4: at most `N` points in `N`-dimensional Euclidean
-space have proper affine span. -/
-lemma affineSpan_image_finset_ne_top_of_card_le
-    {ι : Type*} {N : ℕ} (z : ι → EuclideanSpace ℝ (Fin N))
-    (u : Finset ι) (hu : u.card ≤ N) :
-    affineSpan ℝ (u.image z : Set (EuclideanSpace ℝ (Fin N))) ≠ ⊤ := by
-  classical
-  -- The empty family has empty affine span, so it cannot fill Euclidean space.
-  by_cases hzero : u.card = 0
-  · have hu_empty : u = ∅ := Finset.card_eq_zero.mp hzero
-    simp [hu_empty]
-  -- For a nonempty family, its vector span has dimension at most one less
-  -- than the number of points.
-  · obtain ⟨n, hn⟩ : ∃ n, u.card = n + 1 := by
-      exact ⟨u.card - 1, (Nat.succ_pred_eq_of_pos (Nat.pos_of_ne_zero hzero)).symm⟩
-    intro htop
-    have hrank_le : Module.finrank ℝ
-        (vectorSpan ℝ (u.image z : Set (EuclideanSpace ℝ (Fin N)))) ≤ n :=
-      finrank_vectorSpan_image_finset_le ℝ z u hn
-    have hvector_top :
-        vectorSpan ℝ (u.image z : Set (EuclideanSpace ℝ (Fin N))) = ⊤ := by
-      rw [← direction_affineSpan, htop, AffineSubspace.direction_top]
-    have hN_le_n : N ≤ n := by
-      rw [hvector_top, finrank_top, finrank_euclideanSpace_fin] at hrank_le
-      exact hrank_le
-    omega
 
 /-- Helper for Theorem 50.4: every positive-radius ball contains a point outside
 the affine spans of all small subfamilies of a fixed finite family. -/
@@ -53,7 +25,6 @@ lemma exists_mem_ball_avoiding_small_affineSpans
     (s : Finset ι) (c : EuclideanSpace ℝ (Fin N)) {ε : ℝ} (hε : 0 < ε) :
     ∃ p ∈ Metric.ball c ε, ∀ u : Finset ι, u ⊆ s → u.card ≤ N →
       p ∉ affineSpan ℝ (u.image z : Set (EuclideanSpace ℝ (Fin N))) := by
-  classical
   let candidates := s.powerset.filter fun u ↦ u.card ≤ N
   let forbidden : Set (EuclideanSpace ℝ (Fin N)) :=
     ⋃ u : {u // u ∈ candidates},
@@ -66,8 +37,8 @@ lemma exists_mem_ball_avoiding_small_affineSpans
     apply measure_iUnion_null
     intro u
     exact Measure.addHaar_affineSubspace μ _
-      (affineSpan_image_finset_ne_top_of_card_le z u.1
-        (Finset.mem_filter.mp u.2).2)
+      (affineSpan_image_finset_ne_top_of_card_le ℝ z u.1
+        (by simpa only [finrank_euclideanSpace_fin] using (Finset.mem_filter.mp u.2).2))
   -- A positive-measure ball cannot be contained in the null forbidden union.
   have hnot_subset : ¬ Metric.ball c ε ⊆ forbidden := by
     intro hsubset
@@ -94,7 +65,6 @@ lemma affineIndependent_insert_update
     (hp : p ∉ affineSpan ℝ (Set.image z (s : Set ι))) :
     AffineIndependent ℝ
       (fun j : {j // j ∈ insert i s} ↦ Function.update z i p j.1) := by
-  classical
   let inserted : {j // j ∈ insert i s} := ⟨i, Finset.mem_insert_self i s⟩
   have hmem (j : {j : {j // j ∈ insert i s} // j ≠ inserted}) : j.1.1 ∈ s :=
     (Finset.mem_insert.mp j.1.2).resolve_left fun h ↦ j.2 (Subtype.ext h)
@@ -128,7 +98,6 @@ lemma existsNearbyBoundedAffineIndependentFamily
       (∀ i, dist (z i) (v i) < ε) ∧
       ∀ t : Finset ι, t.card ≤ N + 1 →
         AffineIndependent ℝ (fun i : {i // i ∈ t} ↦ z i.1) := by
-  classical
   let _ := Fintype.ofFinite ι
   -- Induct over processed indices while retaining a total family, pointwise
   -- closeness on the processed set, and general position for every subfinset.
@@ -193,5 +162,4 @@ lemma existsNearbyBoundedAffineIndependentFamily
   · intro t hcard
     exact hz_independent t (Finset.subset_univ t) hcard
 
-end Theorem50_4
 end
