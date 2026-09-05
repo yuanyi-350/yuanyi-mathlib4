@@ -96,53 +96,26 @@ lemma affineIndependent_insert_update
       (fun j : {j // j ∈ insert i s} ↦ Function.update z i p j.1) := by
   classical
   let inserted : {j // j ∈ insert i s} := ⟨i, Finset.mem_insert_self i s⟩
-  let oldEquiv : {j // j ∈ s} ≃ {j : {j // j ∈ insert i s} // j ≠ inserted} := {
-    toFun j := ⟨⟨j.1, Finset.mem_insert_of_mem j.2⟩, by
-      intro h
-      have hji : j.1 = i := congrArg Subtype.val h
-      exact hi (hji ▸ j.2)⟩
-    invFun j := ⟨j.1.1, by
-      have hj := Finset.mem_insert.mp j.1.2
-      exact hj.resolve_left fun h ↦ j.2 (Subtype.ext h)⟩
-    left_inv j := Subtype.ext rfl
-    right_inv j := Subtype.ext (Subtype.ext rfl)
-  }
-  let family : {j // j ∈ insert i s} → E :=
-    fun j ↦ Function.update z i p j.1
+  have hmem (j : {j : {j // j ∈ insert i s} // j ≠ inserted}) : j.1.1 ∈ s :=
+    (Finset.mem_insert.mp j.1.2).resolve_left fun h ↦ j.2 (Subtype.ext h)
+  let old : {j : {j // j ∈ insert i s} // j ≠ inserted} ↪ {j // j ∈ s} :=
+    ⟨fun j ↦ ⟨j.1.1, hmem j⟩, by
+      intro j k h
+      exact Subtype.ext (Subtype.ext (congrArg (fun j : {j // j ∈ s} ↦ j.1) h))⟩
   have hold : AffineIndependent ℝ
-      (fun j : {j : {j // j ∈ insert i s} // j ≠ inserted} ↦ family j.1) := by
-    rw [← affineIndependent_equiv oldEquiv]
-    -- Along the old-index equivalence, the update is away from the fresh index.
-    convert hs using 1
+      (fun j : {j : {j // j ∈ insert i s} // j ≠ inserted} ↦
+        Function.update z i p j.1.1) := by
+    convert hs.comp_embedding old using 1
     ext j
-    simp only [Function.comp_apply, family, oldEquiv]
-    apply Function.update_of_ne
-    intro hji
-    exact hi (hji.symm ▸ j.2)
-  have himage : family '' {j | j ≠ inserted} = Set.image z (s : Set ι) := by
-    ext x
-    constructor
-    · rintro ⟨j, hj, rfl⟩
-      have hj_old : j.1 ∈ s := by
-        have hj_insert := Finset.mem_insert.mp j.2
-        exact hj_insert.resolve_left fun h ↦ hj (Subtype.ext h)
-      refine ⟨j.1, hj_old, ?_⟩
-      unfold family
-      rw [Function.update_of_ne]
-      exact fun h ↦ hi (h ▸ hj_old)
-    · rintro ⟨j, hjs, rfl⟩
-      let j' : {j // j ∈ insert i s} := ⟨j, Finset.mem_insert_of_mem hjs⟩
-      refine ⟨j', ?_, ?_⟩
-      · intro h
-        have hji : j = i := congrArg Subtype.val h
-        exact hi (hji ▸ hjs)
-      · unfold family
-        rw [Function.update_of_ne]
-        exact fun h ↦ hi (h ▸ hjs)
-  -- Apply the standard all-but-one extension theorem at the inserted index.
-  apply AffineIndependent.affineIndependent_of_notMem_span hold
-  rw [himage]
-  simpa [family, inserted] using hp
+    change Function.update z i p j.1.1 = z j.1.1
+    exact Function.update_of_ne (fun h : j.1.1 = i ↦ hi (h ▸ hmem j)) _ _
+  apply hold.affineIndependent_of_notMem_span
+  simp only [inserted, Function.update_self]
+  apply fun h ↦ hp (affineSpan_mono ℝ ?_ h)
+  rintro _ ⟨j, hj, rfl⟩
+  have hji : j.1 ≠ i := fun h ↦ hj (Subtype.ext h)
+  exact ⟨j.1, (Finset.mem_insert.mp j.2).resolve_left hji,
+    (Function.update_of_ne hji _ _).symm⟩
 
 open scoped Classical in
 /-- Helper for Theorem 50.4: a finite Euclidean family admits a pointwise small

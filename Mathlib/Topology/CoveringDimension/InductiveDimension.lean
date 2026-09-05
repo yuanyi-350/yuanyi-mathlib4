@@ -127,36 +127,6 @@ lemma existsPairwiseDisjointOpenCores
       exact interior_subset hxInterior
     exact (not_lt_of_ge (himin j.1 hxjOpen)) j.2
 
-/-- Helper for Definition 50.8: adjoining a pairwise-disjoint indexed family increases the order
-of an existing indexed family by at most one. -/
-lemma hasOrderLE_sum_of_pairwiseDisjoint
-    {X I J : Type*} (E : I → Set X) (D : J → Set X) {q : ℕ}
-    (hE : (Set.range E).HasOrderLE q)
-    (hD : Pairwise fun i j ↦ Disjoint (D i) (D j)) :
-    (Set.range (Sum.elim E D)).HasOrderLE (q + 1) := by
-  -- Split the combined range into its two summands and bound their pointwise incidences.
-  rw [Set.hasOrderLE_iff]
-  intro x
-  rw [Set.Sum.elim_range]
-  let S : Set (Set X) := {U ∈ Set.range E | x ∈ U}
-  let T : Set (Set X) := {U ∈ Set.range D | x ∈ U}
-  have hincidence : {U ∈ Set.range E ∪ Set.range D | x ∈ U} = S ∪ T := by
-    ext U
-    simp only [S, T, Set.mem_ofPred_eq, Set.mem_union]
-    tauto
-  rw [hincidence]
-  apply (Set.encard_union_le S T).trans
-  have hTsubsingleton : T.Subsingleton := by
-    intro U hU V hV
-    obtain ⟨i, rfl⟩ := hU.1
-    obtain ⟨j, hji⟩ := hV.1
-    subst V
-    by_cases hij : i = j
-    · simp only [hij]
-    · exact (Set.disjoint_left.mp (hD hij) hU.2 hV.2).elim
-  exact add_le_add (Set.hasOrderLE_iff.mp hE x)
-    (Set.encard_le_one_iff_subsingleton.mpr hTsubsingleton)
-
 /-- Helper for Definition 50.8: every controlled closed-pair partition yields the corresponding
 covering-dimension bound on a compact metrizable space. -/
 lemma hasCoveringDimensionLE_of_openPartitions
@@ -226,19 +196,7 @@ lemma hasCoveringDimensionLE_of_openPartitions
         exact hDopen i
       · rw [Set.sUnion_range]
         exact hDcoverUniv
-      · have hDorder : (Set.range D).HasOrderLE 1 := by
-          rw [Set.hasOrderLE_iff]
-          intro x
-          have hsubsingleton : {U ∈ Set.range D | x ∈ U}.Subsingleton := by
-            intro U hU W hW
-            obtain ⟨i, rfl⟩ := hU.1
-            obtain ⟨j, hji⟩ := hW.1
-            subst W
-            by_cases hij : i = j
-            · simp only [hij]
-            · exact (Set.disjoint_left.mp (hDdisjoint hij) hU.2 hW.2).elim
-          simpa using Set.encard_le_one_iff_subsingleton.mpr hsubsingleton
-        exact hDorder
+      · exact Set.hasOrderLE_one_iff.mpr hDdisjoint.range_pairwise
   | succ q =>
       -- Refine the traces of the original finite cover on the closed frontier locus, then swell
       -- its closed shrinking back into the ambient space without changing its nerve.
@@ -278,7 +236,8 @@ lemma hasCoveringDimensionLE_of_openPartitions
           exact Set.mem_iUnion.mpr ⟨Sum.inl j, hxj⟩
         · obtain ⟨i, hxi⟩ := Set.mem_iUnion.mp (hDcover hxL)
           exact Set.mem_iUnion.mpr ⟨Sum.inr i, hxi⟩
-      · exact hasOrderLE_sum_of_pairwiseDisjoint E D hEorder hDdisjoint
+      · simpa only [F, Set.Sum.elim_range] using
+          hEorder.union (Set.hasOrderLE_one_iff.mpr hDdisjoint.range_pairwise)
 
 /-- Helper for Definition 50.8: local frontier control produces a controlled partition between
 any two disjoint closed subsets. -/

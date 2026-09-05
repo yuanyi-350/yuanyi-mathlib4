@@ -56,50 +56,23 @@ private lemma euclideanGridBoundary_phase_unique {N : ℕ} {a x : ℝ} (ha : 0 <
     (hc : ∃ n : ℤ, x = a * ((n : ℝ) + euclideanCoverPhaseShift N c))
     (hd : ∃ n : ℤ, x = a * ((n : ℝ) + euclideanCoverPhaseShift N d)) :
     c = d := by
-  -- Cancel the mesh and clear the common denominator of the two phase shifts.
+  -- Clear the common denominator and recover the phase as the residue modulo `N + 1`.
   obtain ⟨n, hn⟩ := hc
   obtain ⟨m, hm⟩ := hd
   have hscaled : (n : ℝ) + euclideanCoverPhaseShift N c =
-      (m : ℝ) + euclideanCoverPhaseShift N d := by
-    nlinarith
-  have hdenomPos : 0 < (N : ℝ) + 1 := by
-    positivity
-  have hdenom : ((N + 1 : ℕ) : ℝ) ≠ 0 := by
-    positivity
-  have hc0 : 0 ≤ euclideanCoverPhaseShift N c := by
-    dsimp [euclideanCoverPhaseShift]
-    positivity
-  have hc1 : euclideanCoverPhaseShift N c < 1 := by
-    rw [euclideanCoverPhaseShift, div_lt_one hdenomPos]
-    exact_mod_cast c.isLt
-  have hd0 : 0 ≤ euclideanCoverPhaseShift N d := by
-    dsimp [euclideanCoverPhaseShift]
-    positivity
-  have hd1 : euclideanCoverPhaseShift N d < 1 := by
-    rw [euclideanCoverPhaseShift, div_lt_one hdenomPos]
-    exact_mod_cast d.isLt
-  have hcFloor : ⌊euclideanCoverPhaseShift N c⌋ = 0 := by
-    rw [Int.floor_eq_zero_iff]
-    exact ⟨hc0, hc1⟩
-  have hdFloor : ⌊euclideanCoverPhaseShift N d⌋ = 0 := by
-    rw [Int.floor_eq_zero_iff]
-    exact ⟨hd0, hd1⟩
-  have hnFloor : ⌊(n : ℝ) + euclideanCoverPhaseShift N c⌋ = n := by
-    rw [Int.floor_intCast_add, hcFloor, add_zero]
-  have hmFloor : ⌊(m : ℝ) + euclideanCoverPhaseShift N d⌋ = m := by
-    rw [Int.floor_intCast_add, hdFloor, add_zero]
-  have hnm : n = m := by
-    rw [← hnFloor, ← hmFloor]
-    exact congrArg Int.floor hscaled
-  have hshift : euclideanCoverPhaseShift N c = euclideanCoverPhaseShift N d := by
-    rw [hnm] at hscaled
-    linarith
-  have hcast : (c : ℝ) = d := by
-    dsimp [euclideanCoverPhaseShift] at hshift
-    field_simp [hdenom] at hshift
-    linarith
-  apply Fin.ext
-  exact_mod_cast hcast
+      (m : ℝ) + euclideanCoverPhaseShift N d := mul_left_cancel₀ ha.ne' (hn.symm.trans hm)
+  have heq : n * (N + 1 : ℤ) + c.val = m * (N + 1 : ℤ) + d.val := by
+    dsimp [euclideanCoverPhaseShift] at hscaled
+    field_simp at hscaled
+    exact_mod_cast (by nlinarith only [hscaled] :
+      (n : ℝ) * (N + 1) + (c : ℝ) = (m : ℝ) * (N + 1) + (d : ℝ))
+  have hmod := congrArg (fun k : ℤ ↦ k % (N + 1)) heq
+  have hcmod : (c.val : ℤ) % (N + 1) = c.val :=
+    Int.emod_eq_of_lt (by positivity) (by exact_mod_cast c.isLt)
+  have hdmod : (d.val : ℤ) % (N + 1) = d.val :=
+    Int.emod_eq_of_lt (by positivity) (by exact_mod_cast d.isLt)
+  simp only [Int.mul_add_emod_self_right, hcmod, hdmod] at hmod
+  exact Fin.ext (by exact_mod_cast hmod)
 
 /-- Helper for Theorem 50.6: among `N + 1` translated grids, one phase avoids the
 boundary grid in all `N` coordinates. -/

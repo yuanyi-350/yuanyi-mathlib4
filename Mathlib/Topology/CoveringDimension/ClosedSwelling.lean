@@ -71,16 +71,7 @@ lemma existsOpen_superset_closure_biInter_eq_empty
   let A : s → Set X := fun i ↦ (K i.1)ᶜ
   have hAopen : ∀ i, IsOpen (A i) := fun i ↦ (hKclosed i.1 i.2).isOpen_compl
   have hAcover : ⋃ i, A i = Set.univ := by
-    rw [eq_univ_iff_forall]
-    intro x
-    by_contra hx
-    have hxK : x ∈ ⋂ i ∈ s, K i := by
-      simp only [Set.mem_iInter]
-      intro i hi
-      by_contra hxi
-      exact hx <| Set.mem_iUnion.mpr ⟨⟨i, hi⟩, hxi⟩
-    have hxempty : x ∈ (∅ : Set X) := hKempty ▸ hxK
-    exact hxempty
+    simp only [A, ← Set.compl_iInter, Set.iInter_subtype, hKempty, Set.compl_empty]
   have hAfin : ∀ x, {i | x ∈ A i}.Finite := fun _ ↦ Set.toFinite _
   obtain ⟨V, hVcover, hVopen, hVclosure⟩ :=
     exists_iUnion_eq_closure_subset hAopen hAfin hAcover
@@ -99,24 +90,14 @@ lemma existsOpen_superset_closure_biInter_eq_empty
     split_ifs with hi
     · exact fun hxclosure ↦ hVclosure ⟨i, hi⟩ hxclosure hxi
     · exact Set.mem_univ x
-  · -- A point in every selected closure would avoid every member of the shrinking cover.
-    apply Set.Subset.antisymm
-    · intro x hx
-      exfalso
-      have hxclosures : ∀ i ∈ s, x ∈ closure (U i) := by
-        simpa only [Set.mem_iInter] using hx
-      have hxnotV : ∀ i : s, x ∉ V i := by
-        intro i hxi
-        have hxclosure : x ∈ closure (U i.1) := hxclosures i.1 i.2
-        have hU : U i.1 = (closure (V i))ᶜ := by simp [U, i.2]
-        have hxnotInterior : x ∉ interior (closure (V i)) := by
-          rw [hU, closure_compl] at hxclosure
-          exact hxclosure
-        exact hxnotInterior (hVopen i |>.subset_interior_closure hxi)
-      have hxunion : x ∈ ⋃ i, V i := hVcover.symm ▸ Set.mem_univ x
-      obtain ⟨i, hxi⟩ := Set.mem_iUnion.mp hxunion
-      exact hxnotV i hxi
-    · exact Set.empty_subset _
+  · -- Every point lies in a shrinking, hence outside the corresponding swollen closure.
+    apply Set.eq_empty_iff_forall_notMem.mpr
+    intro x hx
+    obtain ⟨i, hi⟩ := Set.mem_iUnion.mp (hVcover.symm ▸ Set.mem_univ x)
+    have hxi := Set.mem_iInter₂.mp hx i.1 i.2
+    have hxnot : x ∉ interior (closure (V i)) := by
+      simpa only [U, dite_eq_left i.2, closure_compl, Set.mem_compl_iff] using hxi
+    exact hxnot ((hVopen i).subset_interior_closure hi)
 
 /-- Helper for Definition 50.8: a finite closed family in a normal space can be swollen inside
 prescribed open parents while preserving every empty finite intersection. -/
@@ -221,12 +202,8 @@ lemma existsAmbientOpenSwelling_of_closedSubtypeCover
       exact bot_le
   have hEorder : (Set.range E).HasOrderLE q := by
     apply hasOrderLE_of_finiteIntersection_preserving K E hKorder
-    intro s hs
-    by_contra hKempty
-    have hKempty' : ⋂ i ∈ s, K i = ∅ := Set.not_nonempty_iff_eq_empty.mp hKempty
-    obtain ⟨x, hx⟩ := hs
-    have hxempty : x ∈ (∅ : Set X) := hnerveEmpty s hKempty' ▸ hx
-    exact hxempty
+    intro s
+    simpa only [Set.nonempty_iff_ne_empty] using mt (hnerveEmpty s)
   refine ⟨E, hEopen, ?_, hEclosure, hEorder⟩
   -- The closed seeds contain the original shrinking, so their swellings cover the closed locus.
   intro x hxL

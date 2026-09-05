@@ -34,12 +34,8 @@ private lemma existsOpenRefinementWithOrderOnClosedSet
     rintro A ⟨U, hU, rfl⟩
     exact (h𝒜open U hU).preimage continuous_subtype_val
   have htraceCover : ⋃₀ traceCover = Set.univ := by
-    apply Set.eq_univ_of_forall
-    intro s
-    have hs : s.1 ∈ ⋃₀ 𝒜 := h𝒜cover.symm ▸ Set.mem_univ s.1
-    rw [Set.mem_sUnion] at hs ⊢
-    obtain ⟨A, hA, hsA⟩ := hs
-    exact ⟨((↑) : S → X) ⁻¹' A, ⟨A, hA, rfl⟩, hsA⟩
+    simp only [traceCover, Set.sUnion_image, ← Set.preimage_sUnion, h𝒜cover,
+      Set.preimage_univ]
   obtain ⟨traceRefinement, hrefines, hrefinementOpen, hrefinementCover, hrefinementOrder⟩ :=
     (hasCoveringDimensionLE_iff S n).mp hSdim traceCover htraceOpen htraceCover
   -- Choose an original parent and an ambient open representative for each trace member.
@@ -108,21 +104,13 @@ private lemma existsOpenRefinementWithOrderOnClosedSet
           exact ⟨B, hsTrace, rfl⟩
       | inr A =>
           exact (hV.2.2 s.2).elim
-    have hsourceImage :
-        ((fun B : traceRefinement ↦ (B.1 : Set S)) '' source) =
-          {B ∈ traceRefinement | s ∈ B} := by
-      ext B
-      constructor
-      · rintro ⟨j, hj, rfl⟩
-        exact ⟨j.2, hj⟩
-      · intro hB
-        exact ⟨⟨B, hB.1⟩, hB.2, rfl⟩
     calc
       Set.encard {V ∈ ℬ | s.1 ∈ V}
           ≤ Set.encard (extended '' source) := Set.encard_le_encard hsub
       _ ≤ Set.encard source := Set.encard_image_le extended source
-      _ = Set.encard {B ∈ traceRefinement | s ∈ B} := by
-        rw [← hsourceImage, Subtype.val_injective.encard_image]
+      _ ≤ Set.encard {B ∈ traceRefinement | s ∈ B} :=
+        Set.encard_le_encard_of_injOn (fun B hB ↦ ⟨B.2, hB⟩)
+          Subtype.val_injective.injOn
       _ ≤ n + 1 := (Set.hasOrderLE_iff.mp hrefinementOrder) s
 
 namespace HasCoveringDimensionLE
@@ -193,21 +181,13 @@ theorem unionClosed
           rw [← C.2]
           exact hparent C.1 hxC
         exact ⟨B, hxB, rfl⟩
-      have hsourceImage :
-          ((fun B : ℬ ↦ (B.1 : Set X)) '' source) =
-            {B ∈ ℬ | x ∈ B} := by
-        ext B
-        constructor
-        · rintro ⟨j, hj, rfl⟩
-          exact ⟨j.2, hj⟩
-        · intro hB
-          exact ⟨⟨B, hB.1⟩, hB.2, rfl⟩
       calc
         Set.encard {D ∈ 𝒟 | x ∈ D}
             ≤ Set.encard (grouped '' source) := Set.encard_le_encard hsub
         _ ≤ Set.encard source := Set.encard_image_le grouped source
-        _ = Set.encard {B ∈ ℬ | x ∈ B} := by
-          rw [← hsourceImage, Subtype.val_injective.encard_image]
+        _ ≤ Set.encard {B ∈ ℬ | x ∈ B} :=
+          Set.encard_le_encard_of_injOn (fun B hB ↦ ⟨B.2, hB⟩)
+            Subtype.val_injective.injOn
         _ ≤ n + 1 := hℬorderY y
     · let z : Z := ⟨x, hxZ⟩
       let source : Set 𝒞 := {C | x ∈ (C.1 : Set X)}
@@ -218,21 +198,13 @@ theorem unionClosed
         obtain ⟨C, hxC⟩ := Set.mem_iUnion.mp hD.2
         refine ⟨C.1, hxC, ?_⟩
         exact congrArg grouped C.2
-      have hsourceImage :
-          ((fun C : 𝒞 ↦ (C.1 : Set X)) '' source) =
-            {C ∈ 𝒞 | x ∈ C} := by
-        ext C
-        constructor
-        · rintro ⟨j, hj, rfl⟩
-          exact ⟨j.2, hj⟩
-        · intro hC
-          exact ⟨⟨C, hC.1⟩, hC.2, rfl⟩
       calc
         Set.encard {D ∈ 𝒟 | x ∈ D}
             ≤ Set.encard (groupOf '' source) := Set.encard_le_encard hsub
         _ ≤ Set.encard source := Set.encard_image_le groupOf source
-        _ = Set.encard {C ∈ 𝒞 | x ∈ C} := by
-          rw [← hsourceImage, Subtype.val_injective.encard_image]
+        _ ≤ Set.encard {C ∈ 𝒞 | x ∈ C} :=
+          Set.encard_le_encard_of_injOn (fun C hC ↦ ⟨C.2, hC⟩)
+            Subtype.val_injective.injOn
         _ ≤ n + 1 := h𝒞orderZ z
 
 end HasCoveringDimensionLE

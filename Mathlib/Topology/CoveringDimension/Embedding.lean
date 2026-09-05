@@ -83,21 +83,6 @@ lemma isOpen_setOf_separatesAtScale
     rw [hKempty] at hxyK
     exact hxyK.elim
 
-/-- Helper for Theorem 50.4: the active part of a finite subfamily has cardinality
-bounded by the corresponding pointwise `encard` bound on the ambient family. -/
-private lemma card_filter_mem_le_of_subfamily
-    {α : Type*} (s : Finset α) (𝒜 : Set α) (p : α → Prop) [DecidablePred p]
-    {k : ℕ} (hs : ∀ a ∈ s, a ∈ 𝒜) (hcard : Set.encard {a ∈ 𝒜 | p a} ≤ k) :
-    (s.filter p).card ≤ k := by
-  -- Regard the filtered finset as a set and compare it with the ambient active family.
-  have hsubset : (s.filter p : Set α) ⊆ {a ∈ 𝒜 | p a} := by
-    intro a ha
-    have ha' := Finset.mem_filter.mp ha
-    exact ⟨hs a ha'.1, ha'.2⟩
-  have hencard := (Set.encard_mono hsubset).trans hcard
-  -- The `encard` of a finset coercion is its ordinary finite cardinality.
-  simpa only [Set.encard_coe_eq_coe_finsetCard, ENat.natCast_le_natCast] using hencard
-
 open scoped Classical in
 /-- Helper for Theorem 50.4: covering dimension supplies a finite open cover
 whose members are small both in the domain and under a prescribed map. -/
@@ -131,16 +116,14 @@ private lemma existsFiniteControlledOpenCover
   obtain ⟨ℬ, hℬ_refines, hℬ_open, hℬ_cover, hℬ_order⟩ :=
     (hasCoveringDimensionLE_iff X m).mp hdim 𝒜 h𝒜_open h𝒜_cover
   have hℬ_subcover : Set.univ ⊆ ⋃ U : ℬ, U.1 := by
-    intro x _
-    have hx : x ∈ ⋃₀ ℬ := by
-      rw [hℬ_cover]
-      exact Set.mem_univ x
-    rw [Set.mem_sUnion] at hx
-    obtain ⟨U, hUℬ, hxU⟩ := hx
-    exact Set.mem_iUnion.mpr ⟨⟨U, hUℬ⟩, hxU⟩
+    simp only [← Set.sUnion_eq_iUnion, hℬ_cover, Set.Subset.rfl]
   obtain ⟨t, ht_cover⟩ := isCompact_univ.elim_finite_subcover
     (fun U : ℬ ↦ U.1) (fun U ↦ hℬ_open U.1 U.2) hℬ_subcover
   let s : Finset (Set X) := (t.filter fun U : ℬ ↦ U.1.Nonempty).image Subtype.val
+  have hsℬ : (s : Set (Set X)) ⊆ ℬ := by
+    rintro U hU
+    obtain ⟨V, _, rfl⟩ := Finset.mem_image.mp hU
+    exact V.2
   refine ⟨s, ?_, ?_, ?_, ?_, ?_, ?_⟩
   · -- Every selected member came from the open refinement.
     intro U hUs
@@ -165,19 +148,13 @@ private lemma existsFiniteControlledOpenCover
     exact ⟨V, Finset.mem_filter.mpr ⟨hVt, ⟨x, hxV⟩⟩, rfl⟩
   · -- Point multiplicity can only decrease when passing to the finite subfamily.
     intro x
-    apply card_filter_mem_le_of_subfamily s ℬ (fun U ↦ x ∈ U)
-    · intro U hUs
-      rw [Finset.mem_image] at hUs
-      obtain ⟨V, _, rfl⟩ := hUs
-      exact V.2
-    · exact Set.hasOrderLE_iff.mp hℬ_order x
+    have hsubset : (s.filter (fun U ↦ x ∈ U) : Set (Set X)) ⊆ {U ∈ ℬ | x ∈ U} := by
+      intro U hU
+      exact ⟨hsℬ (Finset.mem_filter.mp hU).1, (Finset.mem_filter.mp hU).2⟩
+    exact_mod_cast (Set.encard_mono hsubset).trans (Set.hasOrderLE_iff.mp hℬ_order x)
   · -- Refinement into one canonical neighborhood gives the domain estimate.
     intro U hUs x hxU y hyU
-    have hUℬ : U ∈ ℬ := by
-      rw [Finset.mem_image] at hUs
-      obtain ⟨V, _, rfl⟩ := hUs
-      exact V.2
-    obtain ⟨A, ⟨z, rfl⟩, hUA⟩ := hℬ_refines hUℬ
+    obtain ⟨A, ⟨z, rfl⟩, hUA⟩ := hℬ_refines (hsℬ hUs)
     have hxz : dist x z < δ / 2 := Metric.mem_ball.mp (hUA hxU).1
     have hzy : dist z y < δ / 2 := by
       rw [dist_comm]
@@ -185,32 +162,12 @@ private lemma existsFiniteControlledOpenCover
     exact lt_of_le_of_lt (dist_triangle x z y) (by linarith)
   · -- The same refinement estimate in the codomain controls image oscillation.
     intro U hUs x hxU y hyU
-    have hUℬ : U ∈ ℬ := by
-      rw [Finset.mem_image] at hUs
-      obtain ⟨V, _, rfl⟩ := hUs
-      exact V.2
-    obtain ⟨A, ⟨z, rfl⟩, hUA⟩ := hℬ_refines hUℬ
+    obtain ⟨A, ⟨z, rfl⟩, hUA⟩ := hℬ_refines (hsℬ hUs)
     have hxz : dist (f x) (f z) < η / 2 := Metric.mem_ball.mp (hUA hxU).2
     have hzy : dist (f z) (f y) < η / 2 := by
       rw [dist_comm]
       exact Metric.mem_ball.mp (hUA hyU).2
     exact lt_of_le_of_lt (dist_triangle (f x) (f z) (f y)) (by linarith)
-
-/-- Helper for Theorem 50.4: a finite open cover admits a subordinate partition
-of unity indexed by the subtype of its members. -/
-private lemma existsSubordinatePartitionOfUnityForFinset
-    {X : Type*} [MetricSpace X] [CompactSpace X] (s : Finset (Set X))
-    (hopen : ∀ U ∈ s, IsOpen U) (hcover : ∀ x, ∃ U ∈ s, x ∈ U) :
-    ∃ ρ : PartitionOfUnity {U : Set X // U ∈ s} X Set.univ,
-      ρ.IsSubordinate fun U ↦ U.1 := by
-  -- Compact metric spaces provide the normal and paracompact instances required
-  -- by the standard subordinate-partition theorem.
-  apply PartitionOfUnity.exists_isSubordinate isClosed_univ
-  · intro U
-    exact hopen U.1 U.2
-  · intro x _
-    obtain ⟨U, hUs, hxU⟩ := hcover x
-    exact Set.mem_iUnion.mpr ⟨⟨U, hUs⟩, hxU⟩
 
 open scoped Classical in
 /-- Helper for Theorem 50.4: the active coefficients of a subordinate finite
@@ -235,26 +192,6 @@ private lemma activePartitionIndices_card_le
     · intro i hi j hj hij
       exact Subtype.ext hij
   exact hcard.trans (hmult x)
-
-open scoped Classical in
-/-- Helper for Theorem 50.4: the barycentric map is uniformly close when every
-active vertex is pointwise close to the reference map. -/
-private lemma barycentricMap_close
-    {X E ι : Type*} [TopologicalSpace X] [CompactSpace X] [Nonempty X]
-    [Fintype ι] [NormedAddCommGroup E] [NormedSpace ℝ E]
-    (ρ : PartitionOfUnity ι X Set.univ) (f g : C(X, E)) (z : ι → E) {r : ℝ}
-    (hg : ∀ x, g x = ∑ i, ρ i x • z i)
-    (hz : ∀ i x, ρ i x ≠ 0 → dist (z i) (f x) < r) :
-    dist g f < r := by
-  classical
-  -- Apply the weighted-average estimate pointwise and then use the uniform metric.
-  apply ContinuousMap.dist_lt_of_nonempty
-  intro x
-  rw [hg x]
-  simpa only [finsum_eq_sum_of_fintype, Metric.mem_ball] using
-    ρ.finsum_smul_mem_convex (g := fun i _ ↦ z i) (Set.mem_univ x)
-      (fun i hi ↦ Metric.mem_ball.mpr (hz i x hi))
-      (convex_ball (f x) r)
 
 open scoped Classical in
 /-- Helper for Theorem 50.4: bounded affine independence of the vertices makes
@@ -309,20 +246,11 @@ private lemma barycentricMap_separatesAtScale
     intro i
     exact (haff t htcard).eq_of_sum_eq_sum (s := Finset.univ)
       (by rw [hsum x hx_support, hsum y hy_support]) hweighted i (Finset.mem_univ i)
-  have hcoeff : ∀ i, ρ i x = ρ i y := by
-    intro i
-    by_cases hix : ρ i x = 0
-    · by_cases hiy : ρ i y = 0
-      · rw [hix, hiy]
-      · have hi : i ∈ t := hy_support i hiy
-        have := hcoeff_on_t ⟨i, hi⟩
-        exact (hix ▸ this)
-    · exact hcoeff_on_t ⟨i, hx_support i hix⟩
   -- A positive coefficient exists; its cover member contains both points.
   obtain ⟨i, hi⟩ := ρ.exists_pos (Set.mem_univ x)
   have hixU : x ∈ U i := hρ i (subset_tsupport (ρ i) (ne_of_gt hi))
   have hiyU : y ∈ U i := by
-    have hiy : ρ i y ≠ 0 := hcoeff i ▸ ne_of_gt hi
+    have hiy : ρ i y ≠ 0 := hcoeff_on_t ⟨i, hx_support i (ne_of_gt hi)⟩ ▸ ne_of_gt hi
     exact hρ i (subset_tsupport (ρ i) hiy)
   exact (not_lt_of_ge hxy) (hdomain i x hixU y hiyU)
 
@@ -343,7 +271,12 @@ lemma dense_setOf_separatesAtScale_of_nonempty
     existsFiniteControlledOpenCover hdim f hscale hrhalf
   -- Use the cover-member subtype as the single finite index type for all
   -- subsequent representatives, vertices, and barycentric coefficients.
-  obtain ⟨ρ, hρ⟩ := existsSubordinatePartitionOfUnityForFinset s hopen hcover
+  obtain ⟨ρ, hρ⟩ := PartitionOfUnity.exists_isSubordinate isClosed_univ
+    (fun U : s ↦ U.1) (fun U ↦ hopen U.1 U.2)
+    (by
+      intro x _
+      obtain ⟨U, hU, hxU⟩ := hcover x
+      exact Set.mem_iUnion.mpr ⟨⟨U, hU⟩, hxU⟩)
   have hactive : ∀ x,
       (Finset.univ.filter fun i ↦ ρ i x ≠ 0).card ≤ m + 1 := by
     intro x
@@ -379,7 +312,12 @@ lemma dense_setOf_separatesAtScale_of_nonempty
       _ = r := by ring
   refine ⟨g, Metric.mem_ball.mpr ?_, ?_⟩
   · -- The weighted-average estimate gives the required uniform approximation.
-    exact barycentricMap_close ρ f g z hg hz_pointwise
+    apply ContinuousMap.dist_lt_of_nonempty
+    intro x
+    rw [hg x]
+    simpa only [finsum_eq_sum_of_fintype, Metric.mem_ball] using
+      ρ.finsum_smul_mem_convex (g := fun i _ ↦ z i) (Set.mem_univ x)
+        (fun i hi ↦ Metric.mem_ball.mpr (hz_pointwise i x hi)) (convex_ball (f x) r)
   · -- Coefficient uniqueness on the union of two active supports gives scale separation.
     exact barycentricMap_separatesAtScale ρ (fun U ↦ U.1) hρ z g hg hactive hz_affine'
       (fun i ↦ hdomain i.1 i.2)

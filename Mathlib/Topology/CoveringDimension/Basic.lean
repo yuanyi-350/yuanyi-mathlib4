@@ -50,6 +50,13 @@ theorem hasOrderLE_iff {X : Type u} {𝒜 : Set (Set X)} {n : ℕ} :
     𝒜.HasOrderLE n ↔ ∀ x : X, Set.encard {U ∈ 𝒜 | x ∈ U} ≤ n := by
   rfl
 
+/-- A family has order at most one exactly when its members are pairwise disjoint. -/
+theorem hasOrderLE_one_iff {X : Type u} {𝒜 : Set (Set X)} :
+    𝒜.HasOrderLE 1 ↔ 𝒜.PairwiseDisjoint id := by
+  simp only [HasOrderLE, Nat.cast_one, encard_le_one_iff, mem_ofPred_eq,
+    PairwiseDisjoint, Set.Pairwise, Function.onFun, id_eq, disjoint_left]
+  grind
+
 namespace HasOrderLE
 
 /-- An upper bound on the order remains valid after increasing the bound. -/
@@ -65,23 +72,21 @@ theorem of_subset {X : Type u} {𝒜 ℬ : Set (Set X)} {n : ℕ}
   intro U hU
   exact ⟨hℬ hU.1, hU.2⟩
 
+/-- The order of a union is bounded by the sum of the orders. -/
+theorem union {X : Type u} {𝒜 ℬ : Set (Set X)} {n m : ℕ}
+    (h𝒜 : 𝒜.HasOrderLE n) (hℬ : ℬ.HasOrderLE m) : (𝒜 ∪ ℬ).HasOrderLE (n + m) := by
+  intro x
+  simp only [Set.mem_union, Set.sep_union, Nat.cast_add]
+  exact (Set.encard_union_le _ _).trans (add_le_add (h𝒜 x) (hℬ x))
+
 /-- Taking preimages of every member of a family does not increase its order. -/
 theorem preimage {Y : Type u} {Z : Type v} {𝒞 : Set (Set Z)} {n : ℕ}
     (h𝒞 : 𝒞.HasOrderLE n) (f : Y → Z) :
     ((fun V : Set Z ↦ f ⁻¹' V) '' 𝒞).HasOrderLE n := by
-  rw [Set.hasOrderLE_iff] at h𝒞 ⊢
   intro y
-  let source : Set (Set Z) := {V ∈ 𝒞 | f y ∈ V}
-  let pullback : Set Z → Set Y := fun V ↦ f ⁻¹' V
-  have hsub : {B ∈ pullback '' 𝒞 | y ∈ B} ⊆ pullback '' source := by
-    intro B hB
-    obtain ⟨V, hV𝒞, rfl⟩ := hB.1
-    exact ⟨V, ⟨hV𝒞, hB.2⟩, rfl⟩
-  calc
-    Set.encard {B ∈ pullback '' 𝒞 | y ∈ B}
-        ≤ Set.encard (pullback '' source) := Set.encard_le_encard hsub
-    _ ≤ Set.encard source := Set.encard_image_le pullback source
-    _ ≤ n := h𝒞 (f y)
+  change (((fun V : Set Z ↦ f ⁻¹' V) '' 𝒞) ∩ {B | y ∈ B}).encard ≤ n
+  rw [← Set.image_inter_preimage]
+  exact (Set.encard_image_le _ _).trans (h𝒞 (f y))
 
 end HasOrderLE
 
@@ -311,30 +316,19 @@ theorem Homeomorph.hasCoveringDimensionLE_of
     rintro U ⟨V, hV, rfl⟩
     exact (h𝒠open V hV).preimage e.continuous
   have h𝒠'cover : ⋃₀ 𝒠' = (_root_.Set.univ : Set A) := by
-    apply Set.eq_univ_of_forall
-    intro x
-    have hx : e x ∈ ⋃₀ 𝒠 := h𝒠cover.symm ▸ Set.mem_univ (e x)
-    rw [Set.mem_sUnion] at hx ⊢
-    obtain ⟨V, hV, hxV⟩ := hx
-    exact ⟨e ⁻¹' V, ⟨V, hV, rfl⟩, hxV⟩
+    simp only [𝒠', Set.sUnion_image, ← Set.preimage_sUnion, h𝒠cover,
+      Set.preimage_univ]
   obtain ⟨𝒯, h𝒯refines, h𝒯open, h𝒯cover, h𝒯order⟩ := h 𝒠' h𝒠'open h𝒠'cover
   let 𝒯' : Set (Set B) := (fun U : Set A ↦ e '' U) '' 𝒯
   refine ⟨𝒯', ?_, ?_, ?_, ?_⟩
   · rintro V ⟨U, hU, rfl⟩
     obtain ⟨W, hW, hUW⟩ := h𝒯refines hU
     obtain ⟨Z, hZ, rfl⟩ := hW
-    refine ⟨Z, hZ, ?_⟩
-    rintro y ⟨x, hxU, hxy⟩
-    subst y
-    exact hUW hxU
+    exact ⟨Z, hZ, Set.image_subset_iff.mpr hUW⟩
   · rintro V ⟨U, hU, rfl⟩
     exact e.isOpen_image.mpr (h𝒯open U hU)
-  · apply Set.eq_univ_of_forall
-    intro y
-    have hy : e.symm y ∈ ⋃₀ 𝒯 := h𝒯cover.symm ▸ Set.mem_univ (e.symm y)
-    rw [Set.mem_sUnion] at hy ⊢
-    obtain ⟨U, hU, hyU⟩ := hy
-    exact ⟨e '' U, ⟨U, hU, rfl⟩, ⟨e.symm y, hyU, e.apply_symm_apply y⟩⟩
+  · simp only [𝒯', ← Set.image_sUnion, h𝒯cover, Set.image_univ,
+      e.surjective.range_eq]
   · simpa only [𝒯', e.image_eq_preimage_symm] using h𝒯order.preimage e.symm
 
 /-- Covering-dimension bounds are preserved by homeomorphisms. -/

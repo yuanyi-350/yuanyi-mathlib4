@@ -111,45 +111,20 @@ lemma exists_active_vertices_of_bothSigns
     (hε : 0 < ε) (hz : ∀ i, ε ≤ |z i|)
     (hsmall : |∑ i, w i * z i| < ε) :
     (∃ i, 0 < z i ∧ w i ≠ 0) ∧ (∃ i, z i < 0 ∧ w i ≠ 0) := by
-  classical
-  constructor
-  · by_contra h
-    push Not at h
-    have hupper : ∑ i, w i * z i ≤ -ε := by
-      calc
-        ∑ i, w i * z i ≤ ∑ i, w i * (-ε) := by
-          apply Finset.sum_le_sum
-          intro i _
-          by_cases hwi : w i = 0
-          · simp only [hwi, zero_mul, le_refl]
-          · have hzinonzero : z i ≠ 0 := abs_pos.mp (hε.trans_le (hz i))
-            have hnotpositive : ¬ 0 < z i := fun hpositive ↦ hwi (h i hpositive)
-            have hzi : z i < 0 := lt_of_le_of_ne (not_lt.mp hnotpositive) hzinonzero
-            have hzle : z i ≤ -ε := by
-              have hbound := hz i
-              rw [abs_of_neg hzi] at hbound
-              linarith
-            exact mul_le_mul_of_nonneg_left hzle (hw_nonnegative i)
-        _ = -ε := by rw [← Finset.sum_mul, hw_sum, one_mul]
-    exact (not_lt_of_ge hupper) (abs_lt.mp hsmall).1
-  · by_contra h
-    push Not at h
-    have hlower : ε ≤ ∑ i, w i * z i := by
-      calc
-        ε = ∑ i, w i * ε := by rw [← Finset.sum_mul, hw_sum, one_mul]
-        _ ≤ ∑ i, w i * z i := by
-          apply Finset.sum_le_sum
-          intro i _
-          by_cases hwi : w i = 0
-          · simp only [hwi, zero_mul, le_refl]
-          · have hzinonzero : z i ≠ 0 := abs_pos.mp (hε.trans_le (hz i))
-            have hnotnegative : ¬ z i < 0 := fun hnegative ↦ hwi (h i hnegative)
-            have hzi : 0 < z i :=
-              lt_of_le_of_ne (not_lt.mp hnotnegative) hzinonzero.symm
-            have hbound := hz i
-            rw [abs_of_pos hzi] at hbound
-            exact mul_le_mul_of_nonneg_left hbound (hw_nonnegative i)
-    exact (not_lt_of_ge hlower) (abs_lt.mp hsmall).2
+  have hpos (z : ι → ℝ) (hz : ∀ i, ε ≤ |z i|) (hsum : -ε < ∑ i, w i * z i) :
+      ∃ i, 0 < z i ∧ w i ≠ 0 := by
+    have hsum' : ∑ i, w i * (-ε) < ∑ i, w i * z i := by
+      rwa [← Finset.sum_mul, hw_sum, one_mul]
+    obtain ⟨i, _, hi⟩ := Finset.exists_lt_of_sum_lt hsum'
+    have hzi := lt_of_mul_lt_mul_left hi (hw_nonnegative i)
+    refine ⟨i, hε.trans_le ((le_abs.mp (hz i)).resolve_right (by linarith)), ?_⟩
+    intro hwi
+    simp only [hwi, zero_mul, lt_self_iff_false] at hi
+  refine ⟨hpos z hz (abs_lt.mp hsmall).1, ?_⟩
+  simpa only [Pi.neg_apply, neg_pos] using hpos (-z)
+    (by simpa only [Pi.neg_apply, abs_neg] using hz)
+    (by simpa only [Pi.neg_apply, mul_neg, Finset.sum_neg_distrib, neg_lt_neg_iff]
+      using (abs_lt.mp hsmall).2)
 
 /-- Helper for Definition 50.8: maps with a buffered fine zero cover of order `n` are dense
 when the compact metric domain has covering dimension at most `n`. -/
@@ -301,23 +276,9 @@ lemma hasCoveringDimensionLE_closedSubset_zeroFiber
   rw [hasCoveringDimensionLE_iff]
   intro 𝒜 h𝒜open h𝒜cover
   classical
-  let ambient : Set (Set X) :=
-    {U | IsOpen U ∧ (Subtype.val : L → X) ⁻¹' U ∈ 𝒜}
-  have hambientOpen : ∀ U ∈ ambient, IsOpen U := fun U hU ↦ hU.1
-  have hambientCover : L ⊆ ⋃₀ ambient := by
-    intro x hxL
-    let z : L := ⟨x, hxL⟩
-    have hz : z ∈ ⋃₀ 𝒜 := h𝒜cover.symm ▸ Set.mem_univ z
-    obtain ⟨A, hA𝒜, hzA⟩ := Set.mem_sUnion.mp hz
-    obtain ⟨U, hUopen, hUtrace⟩ := isOpen_induced_iff.mp (h𝒜open A hA𝒜)
-    refine Set.mem_sUnion.mpr ⟨U, ⟨hUopen, ?_⟩, ?_⟩
-    · simpa only [hUtrace] using hA𝒜
-    · have hzU : z ∈ (Subtype.val : L → X) ⁻¹' U := by
-        rw [hUtrace]
-        exact hzA
-      exact hzU
+  let _ : CompactSpace L := isCompact_iff_compactSpace.mp hLclosed.isCompact
   obtain ⟨δ, hδ, hLebesgue⟩ :=
-    lebesgue_number_lemma_of_metric_sUnion hLclosed.isCompact hambientOpen hambientCover
+    lebesgue_number_lemma_of_metric_sUnion isCompact_univ h𝒜open (by simp [h𝒜cover])
   obtain ⟨k, hk⟩ := exists_nat_one_div_lt hδ
   obtain ⟨ε, hε, 𝒰, _, h𝒰open, h𝒰cover, h𝒰order, h𝒰diameter⟩ := hfine k
   let ℬ : Set (Set L) :=
@@ -325,14 +286,15 @@ lemma hasCoveringDimensionLE_closedSubset_zeroFiber
   refine ⟨ℬ, ?_, ?_, ?_, ?_⟩
   · intro V hV
     obtain ⟨⟨z, hzV⟩, U, hU𝒰, hV⟩ := hV
-    obtain ⟨O, hOambient, hzO⟩ := hLebesgue z.1 z.2
+    obtain ⟨O, hO𝒜, hzO⟩ := hLebesgue z (Set.mem_univ z)
     have hzU : z.1 ∈ U := (Set.ext_iff.mp hV z).mp hzV
-    refine ⟨(Subtype.val : L → X) ⁻¹' O, hOambient.2, ?_⟩
+    refine ⟨O, hO𝒜, ?_⟩
     rw [hV]
     intro y hy
     apply hzO
     apply Metric.mem_ball.mpr
-    simpa only [dist_comm] using (h𝒰diameter U hU𝒰 z.1 hzU y.1 hy).trans hk
+    simpa only [Subtype.dist_eq, dist_comm] using
+      (h𝒰diameter U hU𝒰 z.1 hzU y.1 hy).trans hk
   · intro V hV
     obtain ⟨_, U, hU𝒰, rfl⟩ := hV
     exact (h𝒰open U hU𝒰).preimage continuous_subtype_val
