@@ -54,13 +54,13 @@ lemma existsFiniteIndexedShrinkingRefinement
         ∀ i, closure (C i : Set X) ⊆ B i := by
   classical
   -- Apply the finite shrinking construction to an order-bounded refinement.
-  obtain ⟨ℬ, hℬrefines, hℬcover, hℬorder⟩ :=
-    h 𝒜 h𝒜open h𝒜cover
+  obtain ⟨ℬ, hℬrefines, hℬopen, hℬcover, hℬorder⟩ :=
+    (hasCoveringDimensionLE_iff X n).mp h 𝒜 h𝒜open h𝒜cover
   obtain ⟨ι, hι, B, C, hBcover, hCcover, hBinjective, hBmem, hCclosure⟩ :=
-    existsFiniteIndexedShrinkingSubcover ℬ (fun U hU ↦ hℬrefines.isOpen_of_mem hU) hℬcover
+    existsFiniteIndexedShrinkingSubcover ℬ hℬopen hℬcover
   -- Choose an original-cover parent for each retained refinement member.
   have hparent (i : ι) : ∃ A : 𝒜, (B i : Set X) ⊆ A := by
-    obtain ⟨A, hA𝒜, hBA⟩ := hℬrefines.subset_of_mem (hBmem i)
+    obtain ⟨A, hA𝒜, hBA⟩ := hℬrefines (hBmem i)
     exact ⟨⟨A, hA𝒜⟩, hBA⟩
   choose p hp using hparent
   exact ⟨ι, hι, B, C, p, hBcover, hCcover,
@@ -314,6 +314,7 @@ lemma hasCoveringDimensionLE_closedSubset_zeroFiber
     (hfine : ∀ k : ℕ,
       HasBufferedFineZeroCover f (q + 1) (1 / (k + 1 : ℝ))) :
     HasCoveringDimensionLE L q := by
+  rw [hasCoveringDimensionLE_iff]
   intro 𝒜 h𝒜open h𝒜cover
   classical
   let ambient : Set (Set X) :=
@@ -337,22 +338,20 @@ lemma hasCoveringDimensionLE_closedSubset_zeroFiber
   obtain ⟨ε, hε, 𝒰, _, h𝒰open, h𝒰cover, h𝒰order, h𝒰diameter⟩ := hfine k
   let ℬ : Set (Set L) :=
     {V | V.Nonempty ∧ ∃ U ∈ 𝒰, V = (Subtype.val : L → X) ⁻¹' U}
-  refine ⟨ℬ, ?_, ?_, ?_⟩
-  · rw [isOpenRefinement_iff, isRefinement_iff]
-    constructor
-    · intro V hV
-      obtain ⟨⟨z, hzV⟩, U, hU𝒰, hV⟩ := hV
-      obtain ⟨O, hOambient, hzO⟩ := hLebesgue z.1 z.2
-      have hzU : z.1 ∈ U := (Set.ext_iff.mp hV z).mp hzV
-      refine ⟨(Subtype.val : L → X) ⁻¹' O, hOambient.2, ?_⟩
-      rw [hV]
-      intro y hy
-      apply hzO
-      apply Metric.mem_ball.mpr
-      simpa only [dist_comm] using (h𝒰diameter U hU𝒰 z.1 hzU y.1 hy).trans hk
-    · intro V hV
-      obtain ⟨_, U, hU𝒰, rfl⟩ := hV
-      exact (h𝒰open U hU𝒰).preimage continuous_subtype_val
+  refine ⟨ℬ, ?_, ?_, ?_, ?_⟩
+  · intro V hV
+    obtain ⟨⟨z, hzV⟩, U, hU𝒰, hV⟩ := hV
+    obtain ⟨O, hOambient, hzO⟩ := hLebesgue z.1 z.2
+    have hzU : z.1 ∈ U := (Set.ext_iff.mp hV z).mp hzV
+    refine ⟨(Subtype.val : L → X) ⁻¹' O, hOambient.2, ?_⟩
+    rw [hV]
+    intro y hy
+    apply hzO
+    apply Metric.mem_ball.mpr
+    simpa only [dist_comm] using (h𝒰diameter U hU𝒰 z.1 hzU y.1 hy).trans hk
+  · intro V hV
+    obtain ⟨_, U, hU𝒰, rfl⟩ := hV
+    exact (h𝒰open U hU𝒰).preimage continuous_subtype_val
   · apply Set.eq_univ_of_forall
     intro z
     have hzsmall : |f z.1| < ε := by

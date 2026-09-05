@@ -388,12 +388,13 @@ theorem compactSubset_euclideanSpace_hasCoveringDimensionLE {N : ℕ}
     (X : Set (EuclideanSpace ℝ (Fin N))) (hX : IsCompact X) :
     HasCoveringDimensionLE X N := by
   -- Choose a Lebesgue number, then refine by the uniformly fine order-`N + 1` cover.
+  rw [hasCoveringDimensionLE_iff]
   intro 𝒜 h𝒜open h𝒜cover
   let _ : CompactSpace X := isCompact_iff_compactSpace.mp hX
   obtain ⟨δ, hδ⟩ := lebesgueNumberLemma 𝒜 h𝒜open h𝒜cover
   obtain ⟨ℬ, hℬopen, hℬcover, hℬorder, hℬsmall⟩ :=
     exists_subtypeEuclideanCover_order X δ hδ.pos
-  refine ⟨ℬ, hδ.isOpenRefinement hℬopen hℬsmall, hℬcover, ?_⟩
+  refine ⟨ℬ, hδ.isCofinalFor hℬsmall, hℬopen, hℬcover, ?_⟩
   simpa using hℬorder
 
 /-- Theorem 50.6. Every compact subspace of `EuclideanSpace ℝ (Fin N)` has

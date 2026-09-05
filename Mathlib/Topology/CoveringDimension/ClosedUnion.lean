@@ -25,7 +25,7 @@ private lemma existsOpenRefinementWithOrderOnClosedSet
     (𝒜 : Set (Set X)) (h𝒜open : ∀ A ∈ 𝒜, IsOpen A)
     (h𝒜cover : ⋃₀ 𝒜 = Set.univ) :
     ∃ ℬ : Set (Set X),
-      IsOpenRefinement ℬ 𝒜 ∧ ⋃₀ ℬ = Set.univ ∧
+      IsCofinalFor ℬ 𝒜 ∧ (∀ B ∈ ℬ, IsOpen B) ∧ ⋃₀ ℬ = Set.univ ∧
         ∀ s : S, Set.encard {B ∈ ℬ | s.1 ∈ B} ≤ (n + 1 : ℕ) := by
   classical
   -- Restrict the ambient cover to `S` and use its covering-dimension bound there.
@@ -41,39 +41,37 @@ private lemma existsOpenRefinementWithOrderOnClosedSet
     rw [Set.mem_sUnion] at hs ⊢
     obtain ⟨A, hA, hsA⟩ := hs
     exact ⟨((↑) : S → X) ⁻¹' A, ⟨A, hA, rfl⟩, hsA⟩
-  obtain ⟨traceRefinement, hrefines, hrefinementCover, hrefinementOrder⟩ :=
-    hSdim traceCover htraceOpen htraceCover
+  obtain ⟨traceRefinement, hrefines, hrefinementOpen, hrefinementCover, hrefinementOrder⟩ :=
+    (hasCoveringDimensionLE_iff S n).mp hSdim traceCover htraceOpen htraceCover
   -- Choose an original parent and an ambient open representative for each trace member.
   have hparentExists (B : traceRefinement) :
       ∃ A : 𝒜, (B.1 : Set S) ⊆ ((↑) : S → X) ⁻¹' (A.1 : Set X) := by
-    obtain ⟨T, hT, hBT⟩ := hrefines.subset_of_mem B.2
+    obtain ⟨T, hT, hBT⟩ := hrefines B.2
     obtain ⟨A, hA, rfl⟩ := hT
     exact ⟨⟨A, hA⟩, hBT⟩
   choose parent hparent using hparentExists
   have hambientExists (B : traceRefinement) :
       ∃ U : Set X, IsOpen U ∧ ((↑) : S → X) ⁻¹' U = (B.1 : Set S) := by
-    exact isOpen_induced_iff.mp (hrefines.isOpen_of_mem B.2)
+    exact isOpen_induced_iff.mp (hrefinementOpen B.1 B.2)
   choose ambient hambientOpen hambientTrace using hambientExists
   let extended : traceRefinement → Set X :=
     fun B ↦ ambient B ∩ (parent B : Set X)
   let outside : 𝒜 → Set X := fun A ↦ (A : Set X) \ S
   let ℬ : Set (Set X) := Set.range (Sum.elim extended outside)
-  refine ⟨ℬ, ?_, ?_, ?_⟩
+  refine ⟨ℬ, ?_, ?_, ?_, ?_⟩
   · -- Intersecting with the chosen parent preserves openness and refinement.
-    rw [isOpenRefinement_iff, isRefinement_iff]
-    constructor
-    · rintro V ⟨j, rfl⟩
-      cases j with
-      | inl B =>
-          exact ⟨parent B, (parent B).2, Set.inter_subset_right⟩
-      | inr A =>
-          exact ⟨A, A.2, Set.sdiff_subset⟩
-    · rintro V ⟨j, rfl⟩
-      cases j with
-      | inl B =>
-          exact (hambientOpen B).inter (h𝒜open (parent B) (parent B).2)
-      | inr A =>
-          exact (h𝒜open A A.2).sdiff hSclosed
+    rintro V ⟨j, rfl⟩
+    cases j with
+    | inl B =>
+        exact ⟨parent B, (parent B).2, Set.inter_subset_right⟩
+    | inr A =>
+        exact ⟨A, A.2, Set.sdiff_subset⟩
+  · rintro V ⟨j, rfl⟩
+    cases j with
+    | inl B =>
+        exact (hambientOpen B).inter (h𝒜open (parent B) (parent B).2)
+    | inr A =>
+        exact (h𝒜open A A.2).sdiff hSclosed
   · -- Trace members cover `S`, while the original members minus `S` cover its complement.
     apply Set.eq_univ_of_forall
     intro x
@@ -140,24 +138,24 @@ theorem unionClosed
     (hZdim : HasCoveringDimensionLE Z n) :
     HasCoveringDimensionLE X n := by
   classical
+  rw [hasCoveringDimensionLE_iff]
   intro 𝒜 h𝒜open h𝒜cover
   -- First control multiplicity on `Y`, then refine once more to control it on `Z`.
-  obtain ⟨ℬ, hℬrefines, hℬcover, hℬorderY⟩ :=
+  obtain ⟨ℬ, hℬrefines, hℬopen, hℬcover, hℬorderY⟩ :=
     existsOpenRefinementWithOrderOnClosedSet hYclosed hYdim 𝒜 h𝒜open h𝒜cover
-  obtain ⟨𝒞, h𝒞refines, h𝒞cover, h𝒞orderZ⟩ :=
+  obtain ⟨𝒞, h𝒞refines, h𝒞open, h𝒞cover, h𝒞orderZ⟩ :=
     existsOpenRefinementWithOrderOnClosedSet hZclosed hZdim ℬ
-      (fun B hB ↦ hℬrefines.isOpen_of_mem hB) hℬcover
+      hℬopen hℬcover
   have hparentExists (C : 𝒞) :
       ∃ B : ℬ, (C.1 : Set X) ⊆ (B.1 : Set X) := by
-    obtain ⟨B, hB, hCB⟩ := h𝒞refines.subset_of_mem C.2
+    obtain ⟨B, hB, hCB⟩ := h𝒞refines C.2
     exact ⟨⟨B, hB⟩, hCB⟩
   choose parent hparent using hparentExists
   -- Group all second-stage members having the same first-stage parent.
   let grouped : ℬ → Set X := fun B ↦
     ⋃ C : {C : 𝒞 // parent C = B}, (C.1.1 : Set X)
   let 𝒟 : Set (Set X) := Set.range grouped
-  have h𝒟refinesℬ : IsRefinement 𝒟 ℬ := by
-    rw [isRefinement_iff]
+  have h𝒟refinesℬ : IsCofinalFor 𝒟 ℬ := by
     rintro D ⟨B, rfl⟩
     refine ⟨B, B.2, ?_⟩
     intro x hx
@@ -168,11 +166,8 @@ theorem unionClosed
     rintro D ⟨B, rfl⟩
     apply isOpen_iUnion
     intro C
-    exact h𝒞refines.isOpen_of_mem C.1.2
-  refine ⟨𝒟, ?_, ?_, ?_⟩
-  · -- The grouped family remains an open refinement of the original cover.
-    rw [isOpenRefinement_iff]
-    exact ⟨h𝒟refinesℬ.trans hℬrefines.toIsRefinement, h𝒟open⟩
+    exact h𝒞open C.1.1 C.1.2
+  refine ⟨𝒟, h𝒟refinesℬ.trans hℬrefines, h𝒟open, ?_, ?_⟩
   · -- Each second-stage member lies in the group indexed by its chosen parent.
     apply Set.eq_univ_of_forall
     intro x

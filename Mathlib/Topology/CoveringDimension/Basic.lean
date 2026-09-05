@@ -8,6 +8,7 @@ module
 public import Mathlib.Data.ENat.Lattice
 public import Mathlib.Data.Set.Card
 public import Mathlib.Topology.Homeomorph.Lemmas
+public import Mathlib.Topology.Sets.OpenCover
 
 /-!
 # Lebesgue covering dimension
@@ -18,9 +19,8 @@ the empty space and `⊤` representing the absence of a finite bound.
 
 ## Main definitions
 
-* `IsRefinement`: one collection of sets refines another.
 * `Set.HasOrderLE`: every point belongs to at most a prescribed number of members.
-* `HasCoveringDimensionLE`: every open cover has an open refinement of order at most `n + 1`.
+* `HasCoveringDimensionLE`: every `IsOpenCover` has an open refinement of order at most `n + 1`.
 * `HasCoveringDimensionLT`: strict finite covering-dimension bounds, including the empty case.
 * `coveringDimension`: the Lebesgue covering dimension, valued in `WithBot ℕ∞`.
 
@@ -31,75 +31,11 @@ the empty space and `⊤` representing the absence of a finite bound.
 
 public section
 
-open Set
+open Set TopologicalSpace
 
 universe u v
 
-/-! ### Refinements and order of covers -/
-
-/-- A collection `ℬ` refines `𝒜` when every member of `ℬ` is contained in a member of `𝒜`. -/
-class IsRefinement {X : Type u} (ℬ 𝒜 : Set (Set X)) : Prop where
-  subset_of_mem {B : Set X} (hB : B ∈ ℬ) : ∃ A ∈ 𝒜, B ⊆ A
-
-/-- The defining condition for a refinement. -/
-theorem isRefinement_iff {X : Type u} {ℬ 𝒜 : Set (Set X)} :
-    IsRefinement ℬ 𝒜 ↔ ∀ B ∈ ℬ, ∃ A ∈ 𝒜, B ⊆ A := by
-  constructor
-  · exact fun h B hB ↦ h.subset_of_mem hB
-  · exact fun h ↦ ⟨fun hB ↦ h _ hB⟩
-
-namespace IsRefinement
-
-/-- Every collection refines itself. -/
-theorem refl {X : Type u} (𝒜 : Set (Set X)) : IsRefinement 𝒜 𝒜 :=
-  ⟨fun hA ↦ ⟨_, hA, Subset.rfl⟩⟩
-
-/-- Refinement is transitive. -/
-theorem trans {X : Type u} {𝒞 ℬ 𝒜 : Set (Set X)}
-    (h𝒞ℬ : IsRefinement 𝒞 ℬ) (hℬ𝒜 : IsRefinement ℬ 𝒜) : IsRefinement 𝒞 𝒜 := by
-  constructor
-  intro C hC
-  obtain ⟨B, hB, hCB⟩ := h𝒞ℬ.subset_of_mem hC
-  obtain ⟨A, hA, hBA⟩ := hℬ𝒜.subset_of_mem hB
-  exact ⟨A, hA, hCB.trans hBA⟩
-
-end IsRefinement
-
-/-- An open refinement is a refinement all of whose members are open. -/
-class IsOpenRefinement {X : Type u} [TopologicalSpace X]
-    (ℬ 𝒜 : Set (Set X)) : Prop extends IsRefinement ℬ 𝒜 where
-  isOpen_of_mem {B : Set X} (hB : B ∈ ℬ) : IsOpen B
-
-/-- An open refinement canonically determines a refinement. -/
-instance {X : Type u} [TopologicalSpace X] {ℬ 𝒜 : Set (Set X)}
-    [h : IsOpenRefinement ℬ 𝒜] : IsRefinement ℬ 𝒜 := h.toIsRefinement
-
-/-- The defining conditions for an open refinement. -/
-theorem isOpenRefinement_iff {X : Type u} [TopologicalSpace X]
-    {ℬ 𝒜 : Set (Set X)} :
-    IsOpenRefinement ℬ 𝒜 ↔ IsRefinement ℬ 𝒜 ∧ ∀ B ∈ ℬ, IsOpen B := by
-  constructor
-  · exact fun h ↦ ⟨h.toIsRefinement, fun _ hB ↦ h.isOpen_of_mem hB⟩
-  · rintro ⟨h_refinement, h_open⟩
-    exact { h_refinement with isOpen_of_mem := fun hB ↦ h_open _ hB }
-
-/-- A closed refinement is a refinement all of whose members are closed. -/
-class IsClosedRefinement {X : Type u} [TopologicalSpace X]
-    (ℬ 𝒜 : Set (Set X)) : Prop extends IsRefinement ℬ 𝒜 where
-  isClosed_of_mem {B : Set X} (hB : B ∈ ℬ) : IsClosed B
-
-/-- A closed refinement canonically determines a refinement. -/
-instance {X : Type u} [TopologicalSpace X] {ℬ 𝒜 : Set (Set X)}
-    [h : IsClosedRefinement ℬ 𝒜] : IsRefinement ℬ 𝒜 := h.toIsRefinement
-
-/-- The defining conditions for a closed refinement. -/
-theorem isClosedRefinement_iff {X : Type u} [TopologicalSpace X]
-    {ℬ 𝒜 : Set (Set X)} :
-    IsClosedRefinement ℬ 𝒜 ↔ IsRefinement ℬ 𝒜 ∧ ∀ B ∈ ℬ, IsClosed B := by
-  constructor
-  · exact fun h ↦ ⟨h.toIsRefinement, fun _ hB ↦ h.isClosed_of_mem hB⟩
-  · rintro ⟨h_refinement, h_closed⟩
-    exact { h_refinement with isClosed_of_mem := fun hB ↦ h_closed _ hB }
+/-! ### Order of covers -/
 
 namespace Set
 
@@ -175,13 +111,18 @@ end Set
 /-! ### Covering dimension -/
 
 /-- A space has covering dimension at most `n` when every open cover has an open refining cover
-of point multiplicity at most `n + 1`. -/
+of point multiplicity at most `n + 1`.
+
+Both covers are indexed families of `Opens X`, with the covering condition expressed using
+`IsOpenCover` and refinement using `IsCofinalFor`. Multiplicity is measured on the range of the
+refining family, so repeated indices representing the same open set are counted only once.
+It suffices to use index types in the same universe as `X`, since any family can be reindexed by
+its range. -/
 abbrev HasCoveringDimensionLE (X : Type u) [TopologicalSpace X] (n : ℕ) : Prop :=
-  ∀ 𝒜 : Set (Set X),
-    (∀ U ∈ 𝒜, IsOpen U) →
-    ⋃₀ 𝒜 = Set.univ →
-    ∃ ℬ : Set (Set X),
-      IsOpenRefinement ℬ 𝒜 ∧ ⋃₀ ℬ = Set.univ ∧ ℬ.HasOrderLE (n + 1)
+  ∀ (ι : Type u) (U : ι → Opens X), IsOpenCover U →
+    ∃ (κ : Type u) (V : κ → Opens X), IsOpenCover V ∧
+      IsCofinalFor (Set.range V) (Set.range U) ∧
+        (Set.range fun j ↦ (V j : Set X)).HasOrderLE (n + 1)
 
 /-- A space has covering dimension less than `0` exactly when it is empty, and has covering
 dimension less than `n + 1` exactly when it has covering dimension at most `n`. -/
@@ -211,15 +152,41 @@ scoped notation "dim " X:arg => coveringDimension X
 
 end CoveringDimension
 
-/-- The open-cover characterization of `HasCoveringDimensionLE`. -/
+/-- The characterization of `HasCoveringDimensionLE` using collections of sets. -/
 theorem hasCoveringDimensionLE_iff (X : Type u) [TopologicalSpace X] (n : ℕ) :
     HasCoveringDimensionLE X n ↔
       ∀ 𝒜 : Set (Set X),
         (∀ U ∈ 𝒜, IsOpen U) →
         ⋃₀ 𝒜 = Set.univ →
         ∃ ℬ : Set (Set X),
-          IsOpenRefinement ℬ 𝒜 ∧ ⋃₀ ℬ = Set.univ ∧ ℬ.HasOrderLE (n + 1) := by
-  rfl
+          IsCofinalFor ℬ 𝒜 ∧ (∀ U ∈ ℬ, IsOpen U) ∧
+            ⋃₀ ℬ = Set.univ ∧ ℬ.HasOrderLE (n + 1) := by
+  constructor
+  · intro h 𝒜 hopen hcover
+    let U : 𝒜 → Opens X := fun A ↦ ⟨A.1, hopen A.1 A.2⟩
+    have hU : IsOpenCover U :=
+      IsOpenCover.of_sets _ (by simpa only [← Set.sUnion_eq_iUnion] using hcover)
+    obtain ⟨κ, V, hV, hVU, horder⟩ := h _ U hU
+    refine ⟨Set.range (fun j ↦ (V j : Set X)), ?_, ?_, ?_, horder⟩
+    · rintro _ ⟨j, rfl⟩
+      obtain ⟨_, ⟨i, rfl⟩, hi⟩ := hVU (Set.mem_range_self j)
+      exact ⟨i.1, i.2, hi⟩
+    · rintro _ ⟨j, rfl⟩
+      exact (V j).isOpen
+    · simpa only [Set.sUnion_range] using hV.iSup_set_eq_univ
+  · intro h ι U hU
+    obtain ⟨ℬ, hrefines, hopen, hcover, horder⟩ := h (Set.range fun i ↦ (U i : Set X))
+      (by rintro _ ⟨i, rfl⟩; exact (U i).isOpen)
+      (by simpa only [Set.sUnion_range] using hU.iSup_set_eq_univ)
+    let V : ℬ → Opens X := fun B ↦ ⟨B.1, hopen B.1 B.2⟩
+    refine ⟨ℬ, V, ?_, ?_, ?_⟩
+    · exact IsOpenCover.of_sets _
+        (by simpa only [← Set.sUnion_eq_iUnion] using hcover)
+    · rintro _ ⟨j, rfl⟩
+      obtain ⟨_, ⟨i, rfl⟩, hi⟩ := hrefines j.2
+      exact ⟨U i, Set.mem_range_self i, hi⟩
+    · change (Set.range (Subtype.val : ℬ → Set X)).HasOrderLE (n + 1)
+      simpa only [Subtype.range_val] using horder
 
 /-- The point-multiplicity characterization of `HasCoveringDimensionLE`. -/
 theorem hasCoveringDimensionLE_iff_pointwise (X : Type u) [TopologicalSpace X] (n : ℕ) :
@@ -228,18 +195,30 @@ theorem hasCoveringDimensionLE_iff_pointwise (X : Type u) [TopologicalSpace X] (
         (∀ U ∈ 𝒜, IsOpen U) →
         ⋃₀ 𝒜 = Set.univ →
         ∃ ℬ : Set (Set X),
-          IsOpenRefinement ℬ 𝒜 ∧ ⋃₀ ℬ = Set.univ ∧
+          IsCofinalFor ℬ 𝒜 ∧ (∀ U ∈ ℬ, IsOpen U) ∧ ⋃₀ ℬ = Set.univ ∧
             ∀ x : X, Set.encard {V ∈ ℬ | x ∈ V} ≤ (n + 1 : ℕ) := by
   simpa only [Set.hasOrderLE_iff] using hasCoveringDimensionLE_iff X n
 
 namespace HasCoveringDimensionLE
 
+/-- A covering-dimension bound applies to open covers indexed in any universe. -/
+theorem exists_refinement {X : Type u} [TopologicalSpace X] {n : ℕ}
+    (h : HasCoveringDimensionLE X n) {ι : Type v} (U : ι → Opens X)
+    (hU : IsOpenCover U) :
+    ∃ (κ : Type u) (V : κ → Opens X), IsOpenCover V ∧
+      IsCofinalFor (Set.range V) (Set.range U) ∧
+        (Set.range fun j ↦ (V j : Set X)).HasOrderLE (n + 1) := by
+  have hU' : IsOpenCover (fun W : Set.range U ↦ W.1) :=
+    IsOpenCover.mk ((iSup_range' id U).trans hU.iSup_eq_top)
+  obtain ⟨κ, V, hV, hVU, horder⟩ := h _ _ hU'
+  exact ⟨κ, V, hV, by simpa only [Subtype.range_val] using hVU, horder⟩
+
 /-- A covering-dimension bound remains valid after increasing the bound. -/
 theorem mono {X : Type u} [TopologicalSpace X] {n m : ℕ}
     (h : HasCoveringDimensionLE X n) (hnm : n ≤ m) : HasCoveringDimensionLE X m := by
-  intro 𝒜 h𝒜_open h𝒜_cover
-  obtain ⟨ℬ, hℬ_refines, hℬ_cover, hℬ_order⟩ := h 𝒜 h𝒜_open h𝒜_cover
-  exact ⟨ℬ, hℬ_refines, hℬ_cover, hℬ_order.mono (Nat.add_le_add_right hnm 1)⟩
+  intro ι U hU
+  obtain ⟨κ, V, hV, hVU, horder⟩ := h _ U hU
+  exact ⟨κ, V, hV, hVU, horder.mono (Nat.add_le_add_right hnm 1)⟩
 
 end HasCoveringDimensionLE
 
@@ -256,10 +235,11 @@ lemma hasCoveringDimensionLT_of_bound {X : Type u} [TopologicalSpace X] {n k : �
 
 lemma hasCoveringDimensionLE_of_isEmpty {X : Type u} [TopologicalSpace X]
     (hX : IsEmpty X) (n : ℕ) : HasCoveringDimensionLE X n := by
+  rw [hasCoveringDimensionLE_iff]
   intro 𝒜 _ _
-  refine ⟨∅, ?_, ?_, ?_⟩
-  · rw [isOpenRefinement_iff]
-    exact ⟨⟨fun hB ↦ hB.elim⟩, fun _ hB ↦ hB.elim⟩
+  refine ⟨∅, ?_, ?_, ?_, ?_⟩
+  · simp [IsCofinalFor]
+  · simp
   · ext x
     exact (hX.false x).elim
   · intro x
@@ -346,20 +326,18 @@ theorem Homeomorph.hasCoveringDimensionLE_of
     rw [Set.mem_sUnion] at hx ⊢
     obtain ⟨V, hV, hxV⟩ := hx
     exact ⟨e ⁻¹' V, ⟨V, hV, rfl⟩, hxV⟩
-  obtain ⟨𝒯, h𝒯refines, h𝒯cover, h𝒯order⟩ := h 𝒠' h𝒠'open h𝒠'cover
+  obtain ⟨𝒯, h𝒯refines, h𝒯open, h𝒯cover, h𝒯order⟩ := h 𝒠' h𝒠'open h𝒠'cover
   let 𝒯' : Set (Set B) := (fun U : Set A ↦ e '' U) '' 𝒯
-  refine ⟨𝒯', ?_, ?_, ?_⟩
-  · rw [isOpenRefinement_iff, isRefinement_iff]
-    constructor
-    · rintro V ⟨U, hU, rfl⟩
-      obtain ⟨W, hW, hUW⟩ := h𝒯refines.subset_of_mem hU
-      obtain ⟨Z, hZ, rfl⟩ := hW
-      refine ⟨Z, hZ, ?_⟩
-      rintro y ⟨x, hxU, hxy⟩
-      subst y
-      exact hUW hxU
-    · rintro V ⟨U, hU, rfl⟩
-      exact e.isOpen_image.mpr (h𝒯refines.isOpen_of_mem hU)
+  refine ⟨𝒯', ?_, ?_, ?_, ?_⟩
+  · rintro V ⟨U, hU, rfl⟩
+    obtain ⟨W, hW, hUW⟩ := h𝒯refines hU
+    obtain ⟨Z, hZ, rfl⟩ := hW
+    refine ⟨Z, hZ, ?_⟩
+    rintro y ⟨x, hxU, hxy⟩
+    subst y
+    exact hUW hxU
+  · rintro V ⟨U, hU, rfl⟩
+    exact e.isOpen_image.mpr (h𝒯open U hU)
   · apply Set.eq_univ_of_forall
     intro y
     have hy : e.symm y ∈ ⋃₀ 𝒯 := h𝒯cover.symm ▸ Set.mem_univ (e.symm y)

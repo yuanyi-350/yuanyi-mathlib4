@@ -249,15 +249,12 @@ lemma hasCoveringDimensionLE_of_openPartitions
           intro hx
           exact hLempty.false ⟨x, hx⟩
         exact hDcover hxnotL
-      refine ⟨Set.range D, ?_, ?_, ?_⟩
-      · rw [isOpenRefinement_iff]
-        constructor
-        · rw [isRefinement_iff]
-          rintro U ⟨i, rfl⟩
-          exact ⟨p i, (p i).2,
-            (hDV i).trans (subset_closure.trans (hVclosure i) |>.trans (hBp i))⟩
-        · rintro U ⟨i, rfl⟩
-          exact hDopen i
+      refine ⟨Set.range D, ?_, ?_, ?_, ?_⟩
+      · rintro U ⟨i, rfl⟩
+        exact ⟨p i, (p i).2,
+          (hDV i).trans (subset_closure.trans (hVclosure i) |>.trans (hBp i))⟩
+      · rintro U ⟨i, rfl⟩
+        exact hDopen i
       · rw [Set.sUnion_range]
         exact hDcoverUniv
       · have hDorder : (Set.range D).HasOrderLE 1 := by
@@ -311,22 +308,19 @@ lemma hasCoveringDimensionLE_of_openPartitions
         existsAmbientOpenSwelling_of_closedSubtypeCover hLclosed R S hScover hRorder
           hRinjective hSclosure (fun j ↦ (B (a j) : Set X)) (fun j ↦ (B (a j)).2) hRA
       let F : Sum κ ι → Set X := Sum.elim E D
-      refine ⟨Set.range F, ?_, ?_, ?_⟩
-      · rw [isOpenRefinement_iff]
-        constructor
-        · rw [isRefinement_iff]
-          rintro U ⟨j, rfl⟩
-          cases j with
-          | inl j =>
-              exact ⟨p (a j), (p (a j)).2,
-                subset_closure.trans (hEclosure j) |>.trans (hBp (a j))⟩
-          | inr i =>
-              exact ⟨p i, (p i).2,
-                (hDV i).trans (subset_closure.trans (hVclosure i) |>.trans (hBp i))⟩
-        · rintro U ⟨j, rfl⟩
-          cases j with
-          | inl j => exact hEopen j
-          | inr i => exact hDopen i
+      refine ⟨Set.range F, ?_, ?_, ?_, ?_⟩
+      · rintro U ⟨j, rfl⟩
+        cases j with
+        | inl j =>
+            exact ⟨p (a j), (p (a j)).2,
+              subset_closure.trans (hEclosure j) |>.trans (hBp (a j))⟩
+        | inr i =>
+            exact ⟨p i, (p i).2,
+              (hDV i).trans (subset_closure.trans (hVclosure i) |>.trans (hBp i))⟩
+      · rintro U ⟨j, rfl⟩
+        cases j with
+        | inl j => exact hEopen j
+        | inr i => exact hDopen i
       · rw [Set.sUnion_range]
         apply Set.eq_univ_of_forall
         intro x

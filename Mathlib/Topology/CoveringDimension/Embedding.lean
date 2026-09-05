@@ -128,10 +128,8 @@ private lemma existsFiniteControlledOpenCover
     constructor
     · exact Metric.mem_ball.mpr (by simpa using hδ)
     · exact Metric.mem_ball.mpr (by simpa using hη)
-  obtain ⟨ℬ, hℬ_refines, hℬ_cover, hℬ_order⟩ :=
+  obtain ⟨ℬ, hℬ_refines, hℬ_open, hℬ_cover, hℬ_order⟩ :=
     (hasCoveringDimensionLE_iff_pointwise X m).mp hdim 𝒜 h𝒜_open h𝒜_cover
-  have hℬ_open : ∀ U ∈ ℬ, IsOpen U := by
-    exact (isOpenRefinement_iff.mp hℬ_refines).2
   have hℬ_subcover : Set.univ ⊆ ⋃ U : ℬ, U.1 := by
     intro x _
     have hx : x ∈ ⋃₀ ℬ := by
@@ -179,7 +177,7 @@ private lemma existsFiniteControlledOpenCover
       rw [Finset.mem_image] at hUs
       obtain ⟨V, _, rfl⟩ := hUs
       exact V.2
-    obtain ⟨A, ⟨z, rfl⟩, hUA⟩ := hℬ_refines.subset_of_mem hUℬ
+    obtain ⟨A, ⟨z, rfl⟩, hUA⟩ := hℬ_refines hUℬ
     have hxz : dist x z < δ / 2 := Metric.mem_ball.mp (hUA hxU).1
     have hzy : dist z y < δ / 2 := by
       rw [dist_comm]
@@ -191,7 +189,7 @@ private lemma existsFiniteControlledOpenCover
       rw [Finset.mem_image] at hUs
       obtain ⟨V, _, rfl⟩ := hUs
       exact V.2
-    obtain ⟨A, ⟨z, rfl⟩, hUA⟩ := hℬ_refines.subset_of_mem hUℬ
+    obtain ⟨A, ⟨z, rfl⟩, hUA⟩ := hℬ_refines hUℬ
     have hxz : dist (f x) (f z) < η / 2 := Metric.mem_ball.mp (hUA hxU).2
     have hzy : dist (f z) (f y) < η / 2 := by
       rw [dist_comm]

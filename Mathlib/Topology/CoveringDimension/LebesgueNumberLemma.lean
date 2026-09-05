@@ -5,7 +5,6 @@ Authors: Yi Yuan
 -/
 module
 
-public import Mathlib.Topology.CoveringDimension.Basic
 public import Mathlib.Topology.CoveringDimension.LebesgueNumber
 
 /-! # The Lebesgue number lemma -/
@@ -16,17 +15,13 @@ universe u
 
 namespace IsLebesgueNumber
 
-/-- A nonempty bounded open cover whose members have diameter smaller than a Lebesgue number
-is an open refinement of the original cover. -/
-theorem isOpenRefinement {X : Type u} [PseudoMetricSpace X]
+/-- A family of nonempty bounded sets whose members have diameter smaller than a Lebesgue number
+refines the original cover. -/
+theorem isCofinalFor {X : Type u} [PseudoMetricSpace X]
     {𝒜 ℬ : Set (Set X)} {δ : ℝ} (hδ : IsLebesgueNumber 𝒜 δ)
-    (hℬopen : ∀ B ∈ ℬ, IsOpen B)
     (hℬsmall : ∀ B ∈ ℬ,
       B.Nonempty ∧ Bornology.IsBounded B ∧ Metric.diam B < δ) :
-    IsOpenRefinement ℬ 𝒜 := by
-  rw [isOpenRefinement_iff]
-  refine ⟨?_, hℬopen⟩
-  rw [isRefinement_iff]
+    IsCofinalFor ℬ 𝒜 := by
   intro B hB
   exact hδ.exists_superset (hℬsmall B hB).1 (hℬsmall B hB).2.1 (hℬsmall B hB).2.2
 

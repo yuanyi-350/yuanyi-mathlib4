@@ -73,21 +73,23 @@ preserves coverage, refinement, and the point-multiplicity bound. -/
 private lemma restrictedAmbientRefinementSpec
     {X : Type u} [TopologicalSpace X] {Y : Set X} {𝒜 : Set (Set Y)}
     {ℬ : Set (Set X)} {k : ℕ}
-    (hℬ_refines : IsOpenRefinement ℬ (ambientOpenExtensionFamily Y 𝒜))
+    (hℬ_refines : IsCofinalFor ℬ (ambientOpenExtensionFamily Y 𝒜))
+    (hℬ_open : ∀ B ∈ ℬ, IsOpen B)
     (hℬ_cover : ⋃₀ ℬ = Set.univ) (hℬ_order : ℬ.HasOrderLE k) :
-    IsOpenRefinement (nonemptyPreimageFamily (Subtype.val : Y → X) ℬ) 𝒜 ∧
+    IsCofinalFor (nonemptyPreimageFamily (Subtype.val : Y → X) ℬ) 𝒜 ∧
+      (∀ V ∈ nonemptyPreimageFamily (Subtype.val : Y → X) ℬ, IsOpen V) ∧
       ⋃₀ nonemptyPreimageFamily (Subtype.val : Y → X) ℬ = Set.univ ∧
         (nonemptyPreimageFamily (Subtype.val : Y → X) ℬ).HasOrderLE k := by
-  have hrestricted_refines :
-      IsOpenRefinement (nonemptyPreimageFamily (Subtype.val : Y → X) ℬ) 𝒜 := by
+  have ⟨hrestricted_refines, hrestricted_open⟩ :
+      IsCofinalFor (nonemptyPreimageFamily (Subtype.val : Y → X) ℬ) 𝒜 ∧
+        (∀ V ∈ nonemptyPreimageFamily (Subtype.val : Y → X) ℬ, IsOpen V) := by
     -- Nonempty restrictions cannot refine the added complement, so each refines `𝒜`.
-    rw [isOpenRefinement_iff, isRefinement_iff]
     constructor
     · intro V hV
       rw [nonemptyPreimageFamily] at hV
       obtain ⟨hV_nonempty, B, hBℬ, hV_preimage⟩ := hV
       obtain ⟨U, hUambient, hBU⟩ :=
-        hℬ_refines.toIsRefinement.subset_of_mem hBℬ
+        hℬ_refines hBℬ
       rw [ambientOpenExtensionFamily] at hUambient
       rcases hUambient with hUambient | hUambient
       · refine ⟨(Subtype.val : Y → X) ⁻¹' U, hUambient.2, ?_⟩
@@ -106,7 +108,7 @@ private lemma restrictedAmbientRefinementSpec
       rw [nonemptyPreimageFamily] at hV
       obtain ⟨_, B, hBℬ, hV_preimage⟩ := hV
       rw [hV_preimage]
-      exact hℬ_refines.isOpen_of_mem hBℬ |>.preimage continuous_subtype_val
+      exact (hℬ_open B hBℬ).preimage continuous_subtype_val
   have hrestricted_cover :
       ⋃₀ nonemptyPreimageFamily (Subtype.val : Y → X) ℬ = Set.univ := by
     -- Restrict an ambient member through each subtype point; it is automatically nonempty.
@@ -129,8 +131,7 @@ private lemma restrictedAmbientRefinementSpec
     apply (hℬ_order.preimage (Subtype.val : Y → X)).of_subset
     rintro V ⟨_, B, hBℬ, rfl⟩
     exact ⟨B, hBℬ, rfl⟩
-  -- Package the three restriction properties behind the stable family interface.
-  exact ⟨hrestricted_refines, hrestricted_cover, hrestricted_order⟩
+  exact ⟨hrestricted_refines, hrestricted_open, hrestricted_cover, hrestricted_order⟩
 
 namespace HasCoveringDimensionLE
 
@@ -144,12 +145,12 @@ theorem closedSubtype {X : Type u} [TopologicalSpace X] {Y : Set X} {n : ℕ}
   intro 𝒜 h𝒜_open h𝒜_cover
   obtain ⟨hambient_open, hambient_cover⟩ :=
     ambientOpenExtensionFamilySpec hY h𝒜_open h𝒜_cover
-  obtain ⟨ℬ, hℬ_refines, hℬ_cover, hℬ_order⟩ :=
+  obtain ⟨ℬ, hℬ_refines, hℬ_open, hℬ_cover, hℬ_order⟩ :=
     hX (ambientOpenExtensionFamily Y 𝒜) hambient_open hambient_cover
-  obtain ⟨hrestricted_refines, hrestricted_cover, hrestricted_order⟩ :=
-    restrictedAmbientRefinementSpec hℬ_refines hℬ_cover hℬ_order
+  obtain ⟨hrestricted_refines, hrestricted_open, hrestricted_cover, hrestricted_order⟩ :=
+    restrictedAmbientRefinementSpec hℬ_refines hℬ_open hℬ_cover hℬ_order
   exact ⟨nonemptyPreimageFamily (Subtype.val : Y → X) ℬ,
-    hrestricted_refines, hrestricted_cover, hrestricted_order⟩
+    hrestricted_refines, hrestricted_open, hrestricted_cover, hrestricted_order⟩
 
 end HasCoveringDimensionLE
 
