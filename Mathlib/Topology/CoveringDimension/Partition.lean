@@ -23,21 +23,6 @@ open Set TopologicalSpace
 
 universe u
 
-/-- Helper for Definition 50.8: the frontier of a finite union is contained in the union of
-the individual frontiers. -/
-lemma frontier_biUnion_finset_subset
-    {X ι : Type*} [TopologicalSpace X] (s : Finset ι) (U : ι → Set X) :
-    frontier (⋃ i ∈ s, U i) ⊆ ⋃ i ∈ s, frontier (U i) := by
-  -- Add one set at a time and use the binary frontier inclusion.
-  classical
-  induction s using Finset.induction_on with
-  | empty => simp
-  | @insert i s hi ih =>
-      simp only [Finset.set_biUnion_insert]
-      exact (frontier_union_subset (U i) (⋃ j ∈ s, U j)).trans <|
-        (Set.union_subset_union Set.inter_subset_left Set.inter_subset_right).trans
-          (Set.union_subset_union_right _ ih)
-
 /-- Helper for Definition 50.8: an order-bounded open refinement of a compact metrizable
 space can be represented by finitely many indexed opens together with a closure-controlled
 shrinking and explicit parents in the original cover. -/

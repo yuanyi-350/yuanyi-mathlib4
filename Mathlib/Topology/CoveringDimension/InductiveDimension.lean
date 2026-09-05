@@ -72,7 +72,7 @@ lemma existsFiniteLocalFrontierCover
     rw [Finset.closure_biUnion]
     exact Set.iUnion₂_subset fun x _ ↦ hVclosure x
   · -- The union frontier lies in the finite union of the selected controlled frontiers.
-    exact frontier_biUnion_finset_subset s V
+    exact s.frontier_biUnion_subset V
 
 /-- Helper for Definition 50.8: a finite open cover decomposes away from its
 frontiers into pairwise disjoint open cores, each contained in its original member. -/
