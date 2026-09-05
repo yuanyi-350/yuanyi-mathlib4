@@ -211,10 +211,10 @@ lemma hasCoveringDimensionLE_of_openPartitions
         intro j x hx
         obtain ⟨z, hzR, rfl⟩ := hx
         exact hRparent j hzR
-      obtain ⟨E, hEopen, hLE, hEclosure, hEorder⟩ :=
-        existsAmbientOpenSwelling_of_closedSubtypeCover hLclosed R S hScover hRorder
-          hRinjective hSclosure (fun j ↦ (B (a j) : Set X)) (fun j ↦ (B (a j)).2) hRA
-      let F : Sum κ ι → Set X := Sum.elim E D
+      obtain ⟨E, hLE, hEclosure, hEorder⟩ :=
+        existsAmbientOpenSwelling_of_closedSubtypeCover hLclosed hScover hRorder
+          hRinjective hSclosure (fun j ↦ B (a j)) hRA
+      let F : Sum κ ι → Set X := Sum.elim (fun j ↦ (E j : Set X)) D
       refine ⟨Set.range F, ?_, ?_, ?_, ?_⟩
       · rintro U ⟨j, rfl⟩
         cases j with
@@ -226,7 +226,7 @@ lemma hasCoveringDimensionLE_of_openPartitions
               (hDV i).trans (subset_closure.trans (hVclosure i) |>.trans (hBp i))⟩
       · rintro U ⟨j, rfl⟩
         cases j with
-        | inl j => exact hEopen j
+        | inl j => exact (E j).isOpen
         | inr i => exact hDopen i
       · rw [Set.sUnion_range]
         apply Set.eq_univ_of_forall
