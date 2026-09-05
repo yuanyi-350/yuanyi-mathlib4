@@ -84,7 +84,6 @@ lemma exists_mem_ball_avoiding_small_affineSpans
   refine ⟨⟨u, Finset.mem_filter.mpr ⟨Finset.mem_powerset.mpr hus, hcard⟩⟩, hp_span⟩
 
 open scoped Classical in
-open scoped Classical in
 /-- Helper for Theorem 50.4: adjoining a fresh updated point outside the old
 affine span preserves affine independence on the enlarged finset. -/
 lemma affineIndependent_insert_update

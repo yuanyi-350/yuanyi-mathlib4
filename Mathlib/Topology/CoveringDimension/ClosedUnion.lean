@@ -244,54 +244,25 @@ theorem coveringDimension_union_closed
     {X : Type u} [TopologicalSpace X] {Y Z : Set X}
     (hY : IsClosed Y) (hZ : IsClosed Z) (hcover : Y ∪ Z = Set.univ) :
     dim X = max (dim Y) (dim Z) := by
-  apply le_antisymm
-  · -- Reduce the upper bound to the natural-valued companion, treating totalized endpoints.
-    let d : WithBot ℕ∞ := max (dim Y) (dim Z)
-    have hd : d = max (dim Y) (dim Z) := rfl
-    rw [← hd]
-    by_cases hdTop : d = ⊤
-    · rw [hdTop]
-      exact le_top
-    by_cases hdBot : d = ⊥
-    · have hYBot : dim Y = ⊥ := (max_eq_bot.mp hdBot).1
-      have hZBot : dim Z = ⊥ := (max_eq_bot.mp hdBot).2
-      have hYempty : IsEmpty Y := (coveringDimension_eq_bot_iff Y).mp hYBot
-      have hZempty : IsEmpty Z := (coveringDimension_eq_bot_iff Z).mp hZBot
-      have hXempty : IsEmpty X := by
-        constructor
-        intro x
-        have hxYZ : x ∈ Y ∪ Z := hcover.symm ▸ Set.mem_univ x
-        rcases hxYZ with hxY | hxZ
-        · exact hYempty.false ⟨x, hxY⟩
-        · exact hZempty.false ⟨x, hxZ⟩
-      rw [(coveringDimension_eq_bot_iff X).mpr hXempty, hdBot]
-    · let e : ℕ∞ := d.unbot hdBot
-      have heNeTop : e ≠ ⊤ := by
-        intro heTop
-        apply hdTop
-        calc
-          d = (e : WithBot ℕ∞) := (WithBot.coe_unbot d hdBot).symm
-          _ = ⊤ := by rw [heTop, WithBot.coe_top]
-      have heLtTop : e < ⊤ := WithTop.lt_top_iff_ne_top.mpr heNeTop
-      let n : ℕ := ENat.lift e heLtTop
-      have hdNat : d = (n : WithBot ℕ∞) := by
-        calc
-          d = (e : WithBot ℕ∞) := (WithBot.coe_unbot d hdBot).symm
-          _ = (n : WithBot ℕ∞) := by
-            exact congrArg (fun a : ℕ∞ ↦ (a : WithBot ℕ∞))
-              (ENat.natCast_lift e heLtTop).symm
-      have hYle : dim Y ≤ (n : WithBot ℕ∞) := by
-        rw [← hdNat]
-        exact le_max_left (dim Y) (dim Z)
-      have hZle : dim Z ≤ (n : WithBot ℕ∞) := by
-        rw [← hdNat]
-        exact le_max_right (dim Y) (dim Z)
-      have hYdim : HasCoveringDimensionLE Y n :=
-        (coveringDimension_le_iff Y n).mp hYle
-      have hZdim : HasCoveringDimensionLE Z n :=
-        (coveringDimension_le_iff Z n).mp hZle
-      rw [hdNat]
-      exact (coveringDimension_le_iff X n).mpr
-        (HasCoveringDimensionLE.unionClosed hY hZ hcover hYdim hZdim)
-  · -- Closed-subspace monotonicity gives the reverse inequality componentwise.
-    exact max_le hY.coveringDimension_le hZ.coveringDimension_le
+  refine eq_of_forall_ge_iff fun d ↦ ?_
+  cases d with
+  | bot =>
+      rw [le_bot_iff, le_bot_iff, max_eq_bot, coveringDimension_eq_bot_iff,
+        coveringDimension_eq_bot_iff, coveringDimension_eq_bot_iff]
+      constructor
+      · intro hX
+        exact ⟨⟨fun y ↦ hX.false y.1⟩, ⟨fun z ↦ hX.false z.1⟩⟩
+      · rintro ⟨hYempty, hZempty⟩
+        refine ⟨fun x ↦ ?_⟩
+        rcases (show x ∈ Y ∪ Z from hcover.symm ▸ Set.mem_univ x) with hx | hx
+        · exact hYempty.false ⟨x, hx⟩
+        · exact hZempty.false ⟨x, hx⟩
+  | coe d =>
+      cases d with
+      | top => simp
+      | coe n =>
+          change dim X ≤ (n : WithBot ℕ∞) ↔ max (dim Y) (dim Z) ≤ (n : WithBot ℕ∞)
+          rw [max_le_iff, coveringDimension_le_iff, coveringDimension_le_iff,
+            coveringDimension_le_iff]
+          exact ⟨fun h ↦ ⟨h.closedSubtype hY, h.closedSubtype hZ⟩,
+            fun h ↦ HasCoveringDimensionLE.unionClosed hY hZ hcover h.1 h.2⟩

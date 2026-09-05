@@ -5,33 +5,17 @@ Authors: Yi Yuan
 -/
 module
 
-public import Mathlib.Topology.CoveringDimension.PointFinite
 import Mathlib.Topology.ShrinkingLemma
 public import Mathlib.Topology.Separation.Regular
 public import Mathlib.Topology.Sets.OpenCover
 
-/-! # Shrinking point-finite open covers -/
+/-! # Finite shrinking subcovers -/
 
 public section
 
 open Set TopologicalSpace
 
-universe u v
-
-namespace TopologicalSpace.IsOpenCover
-
-/-- A point-finite open cover of a normal space has an open shrinking whose
-closures refine the original cover. -/
-theorem exists_shrinking {ι : Type u} {X : Type v} [TopologicalSpace X] [NormalSpace X]
-    {U : ι → Opens X} (hU : IsOpenCover U)
-    (hUfinite : PointFinite (fun i ↦ (U i : Set X))) :
-    ∃ V : ι → Opens X, IsOpenCover V ∧ ∀ i, closure (V i : Set X) ⊆ U i := by
-  obtain ⟨V, hVcover, hVopen, hVclosure⟩ :=
-    exists_iUnion_eq_closure_subset (fun i ↦ (U i).2)
-      (fun x ↦ hUfinite.finite x) hU.iSup_set_eq_univ
-  exact ⟨fun i ↦ ⟨V i, hVopen i⟩, IsOpenCover.of_sets hVopen hVcover, hVclosure⟩
-
-end TopologicalSpace.IsOpenCover
+universe u
 
 /-- An open cover of a compact normal space has a finite subcover, indexed without repetitions,
 and an open shrinking whose closures lie in the selected members. -/
@@ -50,6 +34,8 @@ theorem existsFiniteIndexedShrinkingSubcover
   obtain ⟨t, ht⟩ := hA.exists_finite_of_compactSpace
   let B : t → Opens X := fun i ↦ A i.1
   have hB : IsOpenCover B := ht
-  obtain ⟨C, hC, hCB⟩ := hB.exists_shrinking (pointFinite_iff.mpr fun _ ↦ Set.toFinite _)
-  exact ⟨t, inferInstance, B, C, hB, hC,
+  obtain ⟨C, hCcover, hCopen, hCB⟩ := exists_iUnion_eq_closure_subset
+    (fun i ↦ (B i).isOpen) (fun _ ↦ Set.toFinite _) hB.iSup_set_eq_univ
+  exact ⟨t, inferInstance, B, fun i ↦ ⟨C i, hCopen i⟩,
+    hB, IsOpenCover.of_sets hCopen hCcover,
     Subtype.val_injective.comp Subtype.val_injective, fun i ↦ i.1.2, hCB⟩

@@ -6,7 +6,7 @@ Authors: Yi Yuan
 module
 
 public import Mathlib.Topology.CoveringDimension.Basic
-public import Mathlib.Topology.CoveringDimension.LebesgueNumberLemma
+public import Mathlib.Topology.MetricSpace.Bounded
 public import Mathlib.Analysis.InnerProductSpace.PiL2
 public import Mathlib.Data.Set.Card.Arithmetic
 public import Mathlib.Topology.MetricSpace.Isometry
@@ -391,11 +391,15 @@ theorem compactSubset_euclideanSpace_hasCoveringDimensionLE {N : ℕ}
   rw [hasCoveringDimensionLE_iff]
   intro 𝒜 h𝒜open h𝒜cover
   let _ : CompactSpace X := isCompact_iff_compactSpace.mp hX
-  obtain ⟨δ, hδ⟩ := lebesgueNumberLemma 𝒜 h𝒜open h𝒜cover
+  obtain ⟨δ, hδ, hLebesgue⟩ := CompactSpace.lebesgue_number_lemma
+    (fun U : 𝒜 ↦ U.1) (fun U ↦ h𝒜open U.1 U.2)
+    (by simpa only [← Set.sUnion_eq_iUnion] using h𝒜cover)
   obtain ⟨ℬ, hℬopen, hℬcover, hℬorder, hℬsmall⟩ :=
-    exists_subtypeEuclideanCover_order X δ hδ.pos
-  refine ⟨ℬ, hδ.isCofinalFor hℬsmall, hℬopen, hℬcover, ?_⟩
-  simpa using hℬorder
+    exists_subtypeEuclideanCover_order X δ hδ
+  refine ⟨ℬ, ?_, hℬopen, hℬcover, hℬorder⟩
+  intro B hB
+  obtain ⟨U, hBU⟩ := hLebesgue B (hℬsmall B hB).1 (hℬsmall B hB).2.2.le
+  exact ⟨U.1, U.2, hBU⟩
 
 /-- Theorem 50.6. Every compact subspace of `EuclideanSpace ℝ (Fin N)` has
 covering dimension at most `N`. -/

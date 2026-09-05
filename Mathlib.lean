@@ -8107,12 +8107,9 @@ public import Mathlib.Topology.CoveringDimension.FiniteClosedUnion
 public import Mathlib.Topology.CoveringDimension.FiniteEmbedding
 public import Mathlib.Topology.CoveringDimension.GeneralPosition
 public import Mathlib.Topology.CoveringDimension.InductiveDimension
-public import Mathlib.Topology.CoveringDimension.LebesgueNumber
-public import Mathlib.Topology.CoveringDimension.LebesgueNumberLemma
 public import Mathlib.Topology.CoveringDimension.Manifold
 public import Mathlib.Topology.CoveringDimension.Partition
 public import Mathlib.Topology.CoveringDimension.PlaneCover
-public import Mathlib.Topology.CoveringDimension.PointFinite
 public import Mathlib.Topology.CoveringDimension.Shrinking
 public import Mathlib.Topology.Defs.Basic
 public import Mathlib.Topology.Defs.Filter

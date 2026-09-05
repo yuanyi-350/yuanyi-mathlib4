@@ -5,8 +5,6 @@ Authors: Yi Yuan
 -/
 module
 
-public import Mathlib.Topology.CoveringDimension.FiniteClosedCover
-public import Mathlib.Topology.CoveringDimension.Basic
 public import Mathlib.Topology.CoveringDimension.FiniteClosedUnion
 public import Mathlib.Topology.CoveringDimension.Partition
 public import Mathlib.Topology.CoveringDimension.ClosedSwelling
@@ -76,25 +74,10 @@ lemma existsFiniteLocalFrontierCover
   · -- The union frontier lies in the finite union of the selected controlled frontiers.
     exact frontier_biUnion_finset_subset s V
 
-/-- Helper for Definition 50.8: an arbitrary open cover of a compact metrizable space admits a
-finite indexed subcover together with a closure-controlled shrinking and explicit original-cover
-parents, without assuming any dimension bound. -/
-lemma existsFiniteIndexedShrinkingOfOpenCover
-    {X : Type u} [TopologicalSpace X] [CompactSpace X] [MetrizableSpace X]
-    (𝒜 : Set (Set X)) (h𝒜open : ∀ U ∈ 𝒜, IsOpen U) (h𝒜cover : ⋃₀ 𝒜 = Set.univ) :
-    ∃ (ι : Type u) (_ : Finite ι) (B C : ι → Opens X) (p : ι → 𝒜),
-      IsOpenCover B ∧ IsOpenCover C ∧
-        (∀ i, (B i : Set X) ⊆ p i) ∧
-        ∀ i, closure (C i : Set X) ⊆ B i := by
-  obtain ⟨ι, hι, B, C, hBcover, hCcover, _, hBmem, hCclosure⟩ :=
-    existsFiniteIndexedShrinkingSubcover 𝒜 h𝒜open h𝒜cover
-  exact ⟨ι, hι, B, C, fun i ↦ ⟨B i, hBmem i⟩, hBcover, hCcover,
-    fun _ ↦ Set.Subset.rfl, hCclosure⟩
-
-/-- Helper for Definition 50.8: a finite linearly ordered open cover decomposes away from its
+/-- Helper for Definition 50.8: a finite open cover decomposes away from its
 frontiers into pairwise disjoint open cores, each contained in its original member. -/
-lemma existsPairwiseDisjointOrderedOpenCores
-    {X ι : Type*} [TopologicalSpace X] [Finite ι] [LinearOrder ι]
+lemma existsPairwiseDisjointOpenCores
+    {X ι : Type*} [TopologicalSpace X] [Finite ι]
     (V : ι → Opens X) (hVcover : IsOpenCover V) :
     ∃ D : ι → Set X,
       (∀ i, IsOpen (D i)) ∧
@@ -102,6 +85,8 @@ lemma existsPairwiseDisjointOrderedOpenCores
       Pairwise (fun i j ↦ Disjoint (D i) (D j)) ∧
       (⋃ i, frontier (V i : Set X))ᶜ ⊆ ⋃ i, D i := by
   classical
+  let _ := Fintype.ofFinite ι
+  let _ : LinearOrder ι := LinearOrder.lift' (Fintype.equivFin ι) (Fintype.equivFin ι).injective
   let D : ι → Set X := fun i ↦
     (V i : Set X) \ ⋃ j : {j : ι // j < i}, closure (V j.1 : Set X)
   refine ⟨D, ?_, ?_, ?_, ?_⟩
@@ -142,21 +127,6 @@ lemma existsPairwiseDisjointOrderedOpenCores
       exact interior_subset hxInterior
     exact (not_lt_of_ge (himin j.1 hxjOpen)) j.2
 
-/-- Helper for Definition 50.8: every finite indexed open cover decomposes away from its
-frontiers into pairwise-disjoint open cores contained in the corresponding cover members. -/
-lemma existsPairwiseDisjointOpenCores
-    {X ι : Type*} [TopologicalSpace X] [Finite ι]
-    (V : ι → Opens X) (hVcover : IsOpenCover V) :
-    ∃ D : ι → Set X,
-      (∀ i, IsOpen (D i)) ∧ (∀ i, D i ⊆ V i) ∧
-      Pairwise (fun i j ↦ Disjoint (D i) (D j)) ∧
-      (⋃ i, frontier (V i : Set X))ᶜ ⊆ ⋃ i, D i := by
-  classical
-  let _ : Fintype ι := Fintype.ofFinite ι
-  let e : ι ≃ Fin (Fintype.card ι) := Fintype.equivFin ι
-  let _ : LinearOrder ι := LinearOrder.lift' e e.injective
-  exact existsPairwiseDisjointOrderedOpenCores V hVcover
-
 /-- Helper for Definition 50.8: adjoining a pairwise-disjoint indexed family increases the order
 of an existing indexed family by at most one. -/
 lemma hasOrderLE_sum_of_pairwiseDisjoint
@@ -167,17 +137,7 @@ lemma hasOrderLE_sum_of_pairwiseDisjoint
   -- Split the combined range into its two summands and bound their pointwise incidences.
   rw [Set.hasOrderLE_iff]
   intro x
-  have hrange : Set.range (Sum.elim E D) = Set.range E ∪ Set.range D := by
-    ext U
-    constructor
-    · rintro ⟨i, rfl⟩
-      cases i with
-      | inl i => exact Set.mem_union_left _ ⟨i, rfl⟩
-      | inr j => exact Set.mem_union_right _ ⟨j, rfl⟩
-    · rintro (⟨i, rfl⟩ | ⟨j, rfl⟩)
-      · exact ⟨Sum.inl i, rfl⟩
-      · exact ⟨Sum.inr j, rfl⟩
-  rw [hrange]
+  rw [Set.Sum.elim_range]
   let S : Set (Set X) := {U ∈ Set.range E | x ∈ U}
   let T : Set (Set X) := {U ∈ Set.range D | x ∈ U}
   have hincidence : {U ∈ Set.range E ∪ Set.range D | x ∈ U} = S ∪ T := by
@@ -209,10 +169,12 @@ lemma hasCoveringDimensionLE_of_openPartitions
   classical
   -- Begin with a finite shrinking of the requested cover and separate each closed shrinking from
   -- the complement of its parent open set.
-  rw [hasCoveringDimensionLE_iff_pointwise]
+  rw [hasCoveringDimensionLE_iff]
   intro 𝒜 h𝒜open h𝒜cover
-  obtain ⟨ι, hιfinite, B, C, p, hBcover, hCcover, hBp, hCclosure⟩ :=
-    existsFiniteIndexedShrinkingOfOpenCover 𝒜 h𝒜open h𝒜cover
+  obtain ⟨ι, hιfinite, B, C, hBcover, hCcover, _, hBmem, hCclosure⟩ :=
+    existsFiniteIndexedShrinkingSubcover 𝒜 h𝒜open h𝒜cover
+  let p : ι → 𝒜 := fun i ↦ ⟨B i, hBmem i⟩
+  have hBp (i : ι) : (B i : Set X) ⊆ p i := Set.Subset.rfl
   let _ : Finite ι := hιfinite
   have hseparator (i : ι) :
       ∃ V : Set X,
@@ -269,7 +231,7 @@ lemma hasCoveringDimensionLE_of_openPartitions
             · simp only [hij]
             · exact (Set.disjoint_left.mp (hDdisjoint hij) hU.2 hW.2).elim
           simpa using Set.encard_le_one_iff_subsingleton.mpr hsubsingleton
-        exact Set.hasOrderLE_iff.mp hDorder
+        exact hDorder
   | succ q =>
       -- Refine the traces of the original finite cover on the closed frontier locus, then swell
       -- its closed shrinking back into the ambient space without changing its nerve.
@@ -329,8 +291,7 @@ lemma hasCoveringDimensionLE_of_openPartitions
           exact Set.mem_iUnion.mpr ⟨Sum.inl j, hxj⟩
         · obtain ⟨i, hxi⟩ := Set.mem_iUnion.mp (hDcover hxL)
           exact Set.mem_iUnion.mpr ⟨Sum.inr i, hxi⟩
-      · exact Set.hasOrderLE_iff.mp <|
-          hasOrderLE_sum_of_pairwiseDisjoint E D hEorder hDdisjoint
+      · exact hasOrderLE_sum_of_pairwiseDisjoint E D hEorder hDdisjoint
 
 /-- Helper for Definition 50.8: local frontier control produces a controlled partition between
 any two disjoint closed subsets. -/
@@ -459,20 +420,6 @@ lemma hasSmallInductiveDimensionLT_iff_hasCoveringDimensionLT
         let _ : CompactSpace ↥(frontier U) :=
           isCompact_iff_compactSpace.mp isClosed_frontier.isCompact
         exact (ih ↥(frontier U)).mpr (hfrontier U hU)
-
-/-- Helper for Definition 50.8: the defining sets for the numerical small inductive and covering
-dimensions coincide on compact metrizable spaces. -/
-lemma smallInductiveDimension_definingSet_eq_coveringDimension_definingSet
-    (X : Type u) [TopologicalSpace X] [CompactSpace X] [MetrizableSpace X] :
-    {d : WithBot ℕ∞ | ∀ k : ℕ, d < k → HasSmallInductiveDimensionLT X k} =
-      {d : WithBot ℕ∞ | ∀ k : ℕ, d < k → HasCoveringDimensionLT X k} := by
-  -- Compare membership pointwise, rewriting only the strict dimension predicate.
-  ext d
-  constructor
-  · intro hd k hdk
-    exact (hasSmallInductiveDimensionLT_iff_hasCoveringDimensionLT X k).mp (hd k hdk)
-  · intro hd k hdk
-    exact (hasSmallInductiveDimensionLT_iff_hasCoveringDimensionLT X k).mpr (hd k hdk)
 
 /-- Definition 50.8 (4). On compact metrizable spaces, the small inductive dimension has the same
 value as the covering dimension of Definition 50.3, including the value `⊥` for the empty space. -/

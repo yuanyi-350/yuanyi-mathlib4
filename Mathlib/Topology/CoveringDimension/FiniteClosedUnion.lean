@@ -39,23 +39,8 @@ lemma HasCoveringDimensionLE.finiteUnionClosedSubtypes
     (Y : ι → Set X) (hclosed : ∀ i, IsClosed (Y i))
     (hdim : ∀ i, HasCoveringDimensionLE (Y i) n) :
     HasCoveringDimensionLE (⋃ i, Y i) n := by
-  -- Cover the union subtype by closed preimage pieces and identify each piece once.
-  let Z : Set X := ⋃ i, Y i
-  let Zi : ι → Set Z := fun i ↦ Subtype.val ⁻¹' Y i
-  apply HasCoveringDimensionLE.finite_iUnion_closed Zi
-  · intro i
-    exact (hclosed i).preimage continuous_subtype_val
-  · apply Set.eq_univ_of_forall
-    intro z
-    rw [Set.mem_iUnion]
-    have hz : z.1 ∈ ⋃ i, Y i := z.2
-    rw [Set.mem_iUnion] at hz
-    obtain ⟨i, hzi⟩ := hz
-    exact ⟨i, hzi⟩
-  · intro i
-    have hYZ : Y i ⊆ Z := Set.subset_iUnion Y i
-    exact (Topology.IsEmbedding.subtypeVal.homeomorphOfSubsetRange
-      (by simpa using hYZ)).symm.hasCoveringDimensionLE_of (hdim i)
+  rw [← coveringDimension_le_iff, coveringDimension_iUnion_of_isClosed Y hclosed, iSup_le_iff]
+  exact fun i ↦ (coveringDimension_le_iff (Y i) n).mpr (hdim i)
 
 /-- Helper for Definition 50.8: the strict covering-dimension bound is preserved by finite
 unions of closed subspaces. -/

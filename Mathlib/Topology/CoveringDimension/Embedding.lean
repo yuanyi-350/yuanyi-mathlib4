@@ -7,7 +7,7 @@ module
 
 public import Mathlib.Topology.CoveringDimension.GeneralPosition
 public import Mathlib.Topology.CoveringDimension.Basic
-import Mathlib.Analysis.Convex.Combination
+import Mathlib.Analysis.Convex.PartitionOfUnity
 public import Mathlib.Analysis.InnerProductSpace.PiL2
 public import Mathlib.Topology.Baire.CompleteMetrizable
 public import Mathlib.Topology.Compactness.Compact
@@ -129,7 +129,7 @@ private lemma existsFiniteControlledOpenCover
     · exact Metric.mem_ball.mpr (by simpa using hδ)
     · exact Metric.mem_ball.mpr (by simpa using hη)
   obtain ⟨ℬ, hℬ_refines, hℬ_open, hℬ_cover, hℬ_order⟩ :=
-    (hasCoveringDimensionLE_iff_pointwise X m).mp hdim 𝒜 h𝒜_open h𝒜_cover
+    (hasCoveringDimensionLE_iff X m).mp hdim 𝒜 h𝒜_open h𝒜_cover
   have hℬ_subcover : Set.univ ⊆ ⋃ U : ℬ, U.1 := by
     intro x _
     have hx : x ∈ ⋃₀ ℬ := by
@@ -170,7 +170,7 @@ private lemma existsFiniteControlledOpenCover
       rw [Finset.mem_image] at hUs
       obtain ⟨V, _, rfl⟩ := hUs
       exact V.2
-    · exact hℬ_order x
+    · exact Set.hasOrderLE_iff.mp hℬ_order x
   · -- Refinement into one canonical neighborhood gives the domain estimate.
     intro U hUs x hxU y hyU
     have hUℬ : U ∈ ℬ := by
@@ -212,16 +212,6 @@ private lemma existsSubordinatePartitionOfUnityForFinset
     obtain ⟨U, hUs, hxU⟩ := hcover x
     exact Set.mem_iUnion.mpr ⟨⟨U, hUs⟩, hxU⟩
 
-/-- Helper for Theorem 50.4: a nonzero subordinate partition coefficient forces
-membership in its associated cover member. -/
-private lemma mem_cover_of_partition_ne_zero
-    {X ι : Type*} [TopologicalSpace X] {s : Set X}
-    (ρ : PartitionOfUnity ι X s) (U : ι → Set X) (hρ : ρ.IsSubordinate U)
-    {i : ι} {x : X} (hix : ρ i x ≠ 0) : x ∈ U i := by
-  -- Nonzero values lie in the support, hence in its closure and then in the
-  -- subordinating open-cover member.
-  exact hρ i (subset_tsupport (ρ i) hix)
-
 open scoped Classical in
 /-- Helper for Theorem 50.4: the active coefficients of a subordinate finite
 partition are bounded by the point multiplicity of the cover. -/
@@ -241,63 +231,10 @@ private lemma activePartitionIndices_card_le
     · intro i hi
       have hi_active : ρ i x ≠ 0 := by simpa using hi
       exact Finset.mem_filter.mpr
-        ⟨i.2, mem_cover_of_partition_ne_zero ρ (fun U ↦ U.1) hρ hi_active⟩
+        ⟨i.2, hρ i (subset_tsupport (ρ i) hi_active)⟩
     · intro i hi j hj hij
       exact Subtype.ext hij
   exact hcard.trans (hmult x)
-
-open scoped Classical in
-/-- Helper for Theorem 50.4: the union of two active index sets has at most twice
-the pointwise cardinality bound. -/
-private lemma activePartitionIndices_union_card_le
-    {X ι : Type*} [Fintype ι] {m : ℕ} (ρ : ι → X → ℝ)
-    (hactive : ∀ x, (Finset.univ.filter fun i ↦ ρ i x ≠ 0).card ≤ m + 1)
-    (x y : X) :
-    ((Finset.univ.filter fun i ↦ ρ i x ≠ 0) ∪
-      (Finset.univ.filter fun i ↦ ρ i y ≠ 0)).card ≤ 2 * m + 2 := by
-  classical
-  -- Bound the union by the sum of the two active cardinalities.
-  calc
-    ((Finset.univ.filter fun i ↦ ρ i x ≠ 0) ∪
-        (Finset.univ.filter fun i ↦ ρ i y ≠ 0)).card
-        ≤ (Finset.univ.filter fun i ↦ ρ i x ≠ 0).card +
-          (Finset.univ.filter fun i ↦ ρ i y ≠ 0).card :=
-      Finset.card_union_le _ _
-    _ ≤ (m + 1) + (m + 1) := Nat.add_le_add (hactive x) (hactive y)
-    _ = 2 * m + 2 := by omega
-
-open scoped Classical in
-/-- Helper for Theorem 50.4: restricting a finite weighted sum to a finset
-containing its support does not change the sum. -/
-private lemma sum_activeSubtype_eq_sum
-    {ι M : Type*} [Fintype ι] [AddCommMonoid M] [Module ℝ M]
-    (t : Finset ι) (w : ι → ℝ) (v : ι → M)
-    (hsupport : ∀ i, w i ≠ 0 → i ∈ t) :
-    (∑ i : {i // i ∈ t}, w i.1 • v i.1) = ∑ i, w i • v i := by
-  classical
-  -- Expand the subtype sum over `t`, then add the zero terms outside `t`.
-  calc
-    (∑ i : {i // i ∈ t}, w i.1 • v i.1) = ∑ i ∈ t, w i • v i :=
-      Finset.sum_attach t (fun i ↦ w i • v i)
-    _ = ∑ i, w i • v i := by
-      apply Finset.sum_subset (Finset.subset_univ t)
-      intro i _ hi
-      have hwi : w i = 0 := by
-        by_contra hwi
-        exact hi (hsupport i hwi)
-      simp [hwi]
-
-open scoped Classical in
-/-- Helper for Theorem 50.4: a convex weighted average of points lying strictly
-inside a ball remains strictly inside that ball. -/
-private lemma weightedAverage_dist_lt
-    {ι E : Type*} [Fintype ι] [NormedAddCommGroup E] [NormedSpace ℝ E]
-    (w : ι → ℝ) (z : ι → E) (p : E) {r : ℝ}
-    (hw_nonneg : ∀ i, 0 ≤ w i) (hw_sum : ∑ i, w i = 1)
-    (hz : ∀ i, w i ≠ 0 → dist (z i) p < r) :
-    dist (∑ i, w i • z i) p < r := by
-  simpa only [finsum_eq_sum_of_fintype, Metric.mem_ball] using
-    (convex_ball p r).finsum_mem hw_nonneg (by rwa [finsum_eq_sum_of_fintype]) hz
 
 open scoped Classical in
 /-- Helper for Theorem 50.4: the barycentric map is uniformly close when every
@@ -314,10 +251,10 @@ private lemma barycentricMap_close
   apply ContinuousMap.dist_lt_of_nonempty
   intro x
   rw [hg x]
-  apply weightedAverage_dist_lt (fun i ↦ ρ i x) z (f x)
-  · exact fun i ↦ ρ.nonneg i x
-  · simpa only [finsum_eq_sum_of_fintype] using ρ.sum_eq_one (Set.mem_univ x)
-  · exact fun i hi ↦ hz i x hi
+  simpa only [finsum_eq_sum_of_fintype, Metric.mem_ball] using
+    ρ.finsum_smul_mem_convex (g := fun i _ ↦ z i) (Set.mem_univ x)
+      (fun i hi ↦ Metric.mem_ball.mpr (hz i x hi))
+      (convex_ball (f x) r)
 
 open scoped Classical in
 /-- Helper for Theorem 50.4: bounded affine independence of the vertices makes
@@ -338,8 +275,11 @@ private lemma barycentricMap_separatesAtScale
   intro x y hxy hgeq
   let t := (Finset.univ.filter fun i ↦ ρ i x ≠ 0) ∪
     (Finset.univ.filter fun i ↦ ρ i y ≠ 0)
-  have htcard : t.card ≤ 2 * m + 2 :=
-    activePartitionIndices_union_card_le (fun i x ↦ ρ i x) hactive x y
+  have htcard : t.card ≤ 2 * m + 2 := by
+    calc
+      t.card ≤ _ := Finset.card_union_le _ _
+      _ ≤ (m + 1) + (m + 1) := Nat.add_le_add (hactive x) (hactive y)
+      _ = 2 * m + 2 := by omega
   have hx_support : ∀ i, ρ i x ≠ 0 → i ∈ t := by
     intro i hi
     exact Finset.mem_union_left _ (Finset.mem_filter.mpr ⟨Finset.mem_univ i, hi⟩)
@@ -348,27 +288,27 @@ private lemma barycentricMap_separatesAtScale
     exact Finset.mem_union_right _ (Finset.mem_filter.mpr ⟨Finset.mem_univ i, hi⟩)
   -- Restrict both barycentric expressions to the active union and use affine
   -- independence to identify every coefficient.
-  have hsum_x : (∑ i : {i // i ∈ t}, ρ i.1 x) = 1 := by
-    have hrestrict :=
-      sum_activeSubtype_eq_sum t (fun i ↦ ρ i x) (fun _ ↦ (1 : ℝ)) hx_support
-    have hfull : (∑ i, ρ i x) = 1 := by
-      simpa only [finsum_eq_sum_of_fintype] using ρ.sum_eq_one (Set.mem_univ x)
-    simpa [smul_eq_mul] using hrestrict.trans (by simpa [smul_eq_mul] using hfull)
-  have hsum_y : (∑ i : {i // i ∈ t}, ρ i.1 y) = 1 := by
-    have hrestrict :=
-      sum_activeSubtype_eq_sum t (fun i ↦ ρ i y) (fun _ ↦ (1 : ℝ)) hy_support
-    have hfull : (∑ i, ρ i y) = 1 := by
-      simpa only [finsum_eq_sum_of_fintype] using ρ.sum_eq_one (Set.mem_univ y)
-    simpa [smul_eq_mul] using hrestrict.trans (by simpa [smul_eq_mul] using hfull)
+  have hsum (a : X) (ha : ∀ i, ρ i a ≠ 0 → i ∈ t) :
+      (∑ i : {i // i ∈ t}, ρ i.1 a) = 1 := by
+    calc
+      (∑ i : {i // i ∈ t}, ρ i.1 a) = ∑ i, ρ i a :=
+        Fintype.sum_of_injective Subtype.val Subtype.val_injective _ _
+          (by simpa using fun i hi ↦ not_ne_iff.mp (mt (ha i) hi)) (fun _ ↦ rfl)
+      _ = 1 := by
+        simpa only [finsum_eq_sum_of_fintype] using ρ.sum_eq_one (Set.mem_univ a)
+  have hweighted_sum (a : X) (ha : ∀ i, ρ i a ≠ 0 → i ∈ t) :
+      (∑ i : {i // i ∈ t}, ρ i.1 a • z i.1) = g a := by
+    rw [hg a]
+    exact Fintype.sum_of_injective Subtype.val Subtype.val_injective _ _
+      (by simpa using fun i hi ↦ by simp [not_ne_iff.mp (mt (ha i) hi)]) (fun _ ↦ rfl)
   have hweighted :
       (∑ i : {i // i ∈ t}, ρ i.1 x • z i.1) =
         ∑ i : {i // i ∈ t}, ρ i.1 y • z i.1 := by
-    rw [sum_activeSubtype_eq_sum t (fun i ↦ ρ i x) z hx_support,
-      sum_activeSubtype_eq_sum t (fun i ↦ ρ i y) z hy_support, ← hg x, ← hg y, hgeq]
+    rw [hweighted_sum x hx_support, hweighted_sum y hy_support, hgeq]
   have hcoeff_on_t : ∀ i : {i // i ∈ t}, ρ i.1 x = ρ i.1 y := by
     intro i
     exact (haff t htcard).eq_of_sum_eq_sum (s := Finset.univ)
-      (by rw [hsum_x, hsum_y]) hweighted i (Finset.mem_univ i)
+      (by rw [hsum x hx_support, hsum y hy_support]) hweighted i (Finset.mem_univ i)
   have hcoeff : ∀ i, ρ i x = ρ i y := by
     intro i
     by_cases hix : ρ i x = 0
@@ -380,11 +320,10 @@ private lemma barycentricMap_separatesAtScale
     · exact hcoeff_on_t ⟨i, hx_support i hix⟩
   -- A positive coefficient exists; its cover member contains both points.
   obtain ⟨i, hi⟩ := ρ.exists_pos (Set.mem_univ x)
-  have hixU : x ∈ U i := mem_cover_of_partition_ne_zero ρ U hρ (ne_of_gt hi)
+  have hixU : x ∈ U i := hρ i (subset_tsupport (ρ i) (ne_of_gt hi))
   have hiyU : y ∈ U i := by
-    apply mem_cover_of_partition_ne_zero ρ U hρ
-    rw [← hcoeff i]
-    exact ne_of_gt hi
+    have hiy : ρ i y ≠ 0 := hcoeff i ▸ ne_of_gt hi
+    exact hρ i (subset_tsupport (ρ i) hiy)
   exact (not_lt_of_ge hxy) (hdomain i x hixU y hiyU)
 
 /-- Helper for Theorem 50.4: on a nonempty compact metric space of covering
@@ -431,7 +370,7 @@ lemma dense_setOf_separatesAtScale_of_nonempty
   have hz_pointwise : ∀ i x, ρ i x ≠ 0 → dist (z i) (f x) < r := by
     intro i x hix
     have hxU : x ∈ i.1 :=
-      mem_cover_of_partition_ne_zero ρ (fun U ↦ U.1) hρ hix
+      hρ i (subset_tsupport (ρ i) hix)
     calc
       dist (z i) (f x) ≤ dist (z i) (f (a i)) + dist (f (a i)) (f x) :=
         dist_triangle _ _ _

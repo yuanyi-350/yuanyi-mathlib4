@@ -5,7 +5,8 @@ Authors: Yi Yuan
 -/
 module
 
-public import Mathlib.Topology.CoveringDimension.Partition
+public import Mathlib.Topology.CoveringDimension.Basic
+public import Mathlib.Topology.Metrizable.Basic
 public import Mathlib.Topology.ShrinkingLemma
 
 /-! # Closed swellings of finite covers -/
@@ -26,7 +27,7 @@ lemma hasOrderLE_of_finiteIntersection_preserving
       (⋂ i ∈ s, closure (E i)).Nonempty → (⋂ i ∈ s, K i).Nonempty) :
     (Set.range E).HasOrderLE q := by
   classical
-  letI : Fintype ι := Fintype.ofFinite ι
+  let _ : Fintype ι := Fintype.ofFinite ι
   -- At a point of the target family, collect the finitely many incident indices.
   rw [Set.hasOrderLE_iff]
   intro x
@@ -128,7 +129,7 @@ lemma existsOpenSwelling_preservingFiniteIntersections
         ∀ s : Finset ι,
           (⋂ i ∈ s, K i = ∅) → ⋂ i ∈ s, closure (E i) = ∅ := by
   classical
-  letI : Fintype ι := Fintype.ofFinite ι
+  let _ : Fintype ι := Fintype.ofFinite ι
   -- First choose parent-controlled neighborhoods; later intersections will only shrink them.
   have hparent (i : ι) :
       ∃ W : Set X, IsOpen W ∧ K i ⊆ W ∧ closure W ⊆ A i :=
@@ -191,7 +192,7 @@ lemma existsAmbientOpenSwelling_of_closedSubtypeCover
       (∀ i, IsOpen (E i)) ∧ L ⊆ ⋃ i, E i ∧ (∀ i, closure (E i) ⊆ A i) ∧
         (Set.range E).HasOrderLE q := by
   classical
-  letI : CompactSpace L := isCompact_iff_compactSpace.mp hL.isCompact
+  let _ : CompactSpace L := isCompact_iff_compactSpace.mp hL.isCompact
   let K : ι → Set X := fun i ↦ Subtype.val '' closure (C i : Set L)
   have hKclosed : ∀ i, IsClosed (K i) := by
     intro i

@@ -5,10 +5,9 @@ Authors: Yi Yuan
 -/
 module
 
-public import Mathlib.Topology.CoveringDimension.FiniteClosedCover
 public import Mathlib.Topology.CoveringDimension.Basic
 public import Mathlib.Topology.CoveringDimension.Shrinking
-import Mathlib.Analysis.Convex.Combination
+import Mathlib.Analysis.Convex.PartitionOfUnity
 import Mathlib.Analysis.Normed.Module.Convex
 public import Mathlib.Topology.Baire.CompleteMetrizable
 public import Mathlib.Topology.ContinuousMap.Compact
@@ -101,16 +100,6 @@ lemma isOpen_setOf_hasBufferedFineZeroCover
       _ = ε := by ring
   exact ⟨ε / 2, half_pos hε, 𝒰, h𝒰finite, h𝒰open,
     fun x hx ↦ h𝒰cover x (hsmall x hx), fun x hx ↦ h𝒰order x (hsmall x hx), h𝒰diameter⟩
-
-/-- Helper for Definition 50.8: a convex weighted average remains uniformly close to a point
-when every vertex carrying nonzero weight is uniformly close to that point. -/
-lemma dist_weightedSum_lt
-    {ι : Type*} [Fintype ι] (w z : ι → ℝ) (p : ℝ) {r : ℝ}
-    (hw_nonnegative : ∀ i, 0 ≤ w i) (hw_sum : ∑ i, w i = 1)
-    (hz : ∀ i, w i ≠ 0 → dist (z i) p < r) :
-    dist (∑ i, w i * z i) p < r := by
-  simpa only [finsum_eq_sum_of_fintype, Metric.mem_ball, smul_eq_mul] using
-    (convex_ball p r).finsum_mem hw_nonnegative (by rwa [finsum_eq_sum_of_fintype]) hz
 
 /-- Helper for Definition 50.8: a sufficiently small weighted sum of nonzero real vertices has
 an active vertex of each sign. -/
@@ -240,10 +229,10 @@ lemma dense_setOf_hasBufferedFineZeroCover
     apply ContinuousMap.dist_lt_of_nonempty
     intro x
     rw [hg_apply]
-    apply dist_weightedSum_lt (fun i ↦ ρ i x) z (f x)
-    · exact fun i ↦ ρ.nonneg i x
-    · simpa only [finsum_eq_sum_of_fintype] using ρ.sum_eq_one (Set.mem_univ x)
-    · exact fun i hi ↦ hzpoint i x hi
+    simpa only [finsum_eq_sum_of_fintype, Metric.mem_ball, smul_eq_mul] using
+      ρ.finsum_smul_mem_convex (g := fun i _ ↦ z i) (Set.mem_univ x)
+        (fun i hi ↦ Metric.mem_ball.mpr (hzpoint i x hi))
+        (convex_ball (f x) r)
   let ε : ℝ := Finset.univ.inf' ⟨i₀, Finset.mem_univ i₀⟩ fun i ↦ |z i|
   have hεpositive : 0 < ε := by
     exact (Finset.lt_inf'_iff _).2 fun i _ ↦ abs_pos.mpr (hznonzero i)

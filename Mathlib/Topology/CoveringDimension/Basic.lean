@@ -188,17 +188,6 @@ theorem hasCoveringDimensionLE_iff (X : Type u) [TopologicalSpace X] (n : ℕ) :
     · change (Set.range (Subtype.val : ℬ → Set X)).HasOrderLE (n + 1)
       simpa only [Subtype.range_val] using horder
 
-/-- The point-multiplicity characterization of `HasCoveringDimensionLE`. -/
-theorem hasCoveringDimensionLE_iff_pointwise (X : Type u) [TopologicalSpace X] (n : ℕ) :
-    HasCoveringDimensionLE X n ↔
-      ∀ 𝒜 : Set (Set X),
-        (∀ U ∈ 𝒜, IsOpen U) →
-        ⋃₀ 𝒜 = Set.univ →
-        ∃ ℬ : Set (Set X),
-          IsCofinalFor ℬ 𝒜 ∧ (∀ U ∈ ℬ, IsOpen U) ∧ ⋃₀ ℬ = Set.univ ∧
-            ∀ x : X, Set.encard {V ∈ ℬ | x ∈ V} ≤ (n + 1 : ℕ) := by
-  simpa only [Set.hasOrderLE_iff] using hasCoveringDimensionLE_iff X n
-
 namespace HasCoveringDimensionLE
 
 /-- A covering-dimension bound applies to open covers indexed in any universe. -/
@@ -313,7 +302,7 @@ theorem Homeomorph.hasCoveringDimensionLE_of
     {A : Type u} {B : Type v} [TopologicalSpace A] [TopologicalSpace B]
     (e : A ≃ₜ B) {n : ℕ} (h : HasCoveringDimensionLE A n) :
     HasCoveringDimensionLE B n := by
-  rw [hasCoveringDimensionLE_iff_pointwise] at h ⊢
+  rw [hasCoveringDimensionLE_iff] at h ⊢
   intro 𝒠 h𝒠open h𝒠cover
   let 𝒠' : Set (Set A) := (fun U : Set B ↦ e ⁻¹' U) '' 𝒠
   have h𝒠'open : ∀ U ∈ 𝒠', IsOpen U := by
@@ -344,9 +333,7 @@ theorem Homeomorph.hasCoveringDimensionLE_of
     rw [Set.mem_sUnion] at hy ⊢
     obtain ⟨U, hU, hyU⟩ := hy
     exact ⟨e '' U, ⟨U, hU, rfl⟩, ⟨e.symm y, hyU, e.apply_symm_apply y⟩⟩
-  · change 𝒯'.HasOrderLE (n + 1)
-    simpa only [𝒯', e.image_eq_preimage_symm] using
-      (Set.hasOrderLE_iff.mpr h𝒯order).preimage e.symm
+  · simpa only [𝒯', e.image_eq_preimage_symm] using h𝒯order.preimage e.symm
 
 /-- Covering-dimension bounds are preserved by homeomorphisms. -/
 protected theorem Homeomorph.hasCoveringDimensionLE
