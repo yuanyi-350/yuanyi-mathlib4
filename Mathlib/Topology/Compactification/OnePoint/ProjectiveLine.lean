@@ -6,6 +6,7 @@ Authors: Bjørn Kjos-Hanssen, Oliver Nash
 module
 
 public import Mathlib.Algebra.QuadraticDiscriminant
+public import Mathlib.Analysis.Normed.Field.Lemmas
 public import Mathlib.LinearAlgebra.Matrix.Action
 public import Mathlib.LinearAlgebra.Matrix.GeneralLinearGroup.FinTwo
 public import Mathlib.LinearAlgebra.Projectivization.Action
@@ -17,13 +18,14 @@ public import Mathlib.Topology.Compactification.OnePoint.Basic
 We construct a set-theoretic equivalence between
 `OnePoint K` and the projectivization `ℙ K (Fin 2 → K)` for an arbitrary division ring `K`.
 
-TODO: Add the extension of this equivalence to a homeomorphism in the case `K = ℝ`,
-where `OnePoint ℝ` gets the topology of one-point compactification.
-
+For a normed division ring `K` whose closed balls are compact, this equivalence is a homeomorphism
+between the one-point compactification of `K` and the projective line with its quotient topology.
 
 ## Main definitions and results
 
 * `OnePoint.equivProjectivization` : the equivalence `OnePoint K ≃ ℙ K (Fin 2 → K)`.
+* `OnePoint.homeomorphProjectivization` : the homeomorphism `OnePoint K ≃ₜ ℙ K (Fin 2 → K)`
+  when `K` is a normed division ring and a proper metric space.
 
 ## Tags
 
@@ -35,6 +37,67 @@ one-point extension, projectivization
 open scoped LinearAlgebra.Projectivization
 
 open Projectivization Matrix Polynomial OnePoint
+
+namespace Projectivization
+
+open Set Filter Topology
+
+variable {K V X : Type*} [DivisionRing K] [AddCommGroup V] [Module K V]
+  [TopologicalSpace V] [TopologicalSpace X]
+
+/-- Projective space carries the quotient topology from its nonzero vectors. -/
+instance : TopologicalSpace (ℙ K V) :=
+  inferInstanceAs (TopologicalSpace (Quotient (projectivizationSetoid K V)))
+
+@[fun_prop]
+theorem continuous_mk {f : X → V} (hf : Continuous f) (h : ∀ x, f x ≠ 0) :
+    Continuous (fun x ↦ mk K (f x) (h x)) :=
+  continuous_quotient_mk'.comp (hf.subtype_mk h)
+
+theorem isOpenQuotientMap_mk' [ContinuousConstSMul K V] :
+    IsOpenQuotientMap (mk' K : {v : V // v ≠ 0} → ℙ K V) := by
+  let : ContinuousConstSMul Kˣ {v : V // v ≠ 0} := ⟨fun a ↦
+    ((continuous_const_smul a).comp continuous_subtype_val).subtype_mk _⟩
+  have h : projectivizationSetoid K V = MulAction.orbitRel Kˣ {v : V // v ≠ 0} :=
+    (SubMulAction.orbitRel_of_subMul (Units.nonZeroSubMul K V)).symm
+  change IsOpenQuotientMap (@Quotient.mk' _ (projectivizationSetoid K V))
+  rw [h]
+  exact MulAction.isOpenQuotientMap_quotientMk
+
+variable {ι : Type*}
+
+lemma mk_eq_mk_iff_of_apply_ne_zero {v w : ι → K} (hv : v ≠ 0) (hw : w ≠ 0)
+    {i : ι} (hi : w i ≠ 0) :
+    mk K v hv = mk K w hw ↔ v = (v i * (w i)⁻¹) • w := by
+  rw [mk_eq_mk_iff']
+  constructor
+  · rintro ⟨a, rfl⟩
+    simp [Pi.smul_apply, smul_eq_mul, hi]
+  · intro h
+    exact ⟨_, h.symm⟩
+
+/-- Projective space over a Hausdorff topological division ring is Hausdorff. -/
+instance [TopologicalSpace K] [IsTopologicalDivisionRing K] [T2Space K] :
+    T2Space (ℙ K (ι → K)) := by
+  rw [t2Space_iff_of_isOpenQuotientMap isOpenQuotientMap_mk', ← isOpen_compl_iff,
+    isOpen_iff_mem_nhds]
+  rintro ⟨v, w⟩ h
+  obtain ⟨i, hi⟩ := Function.ne_iff.mp w.2
+  let N := {v : ι → K // v ≠ 0}
+  let f (z : N × N) : ι → K := (z.1.1 i * (z.2.1 i)⁻¹) • z.2.1
+  have hval : Continuous (Subtype.val : N → ι → K) := continuous_subtype_val
+  have h₀ := (hval.comp continuous_fst).continuousAt (x := (v, w))
+  have h₁ := (hval.comp continuous_snd).continuousAt (x := (v, w))
+  have hc := h₁.tendsto.apply_nhds i
+  have hf : ContinuousAt f (v, w) :=
+    ((h₀.tendsto.apply_nhds i).mul (hc.inv₀ hi)).smul h₁
+  have hne : v.1 ≠ f (v, w) :=
+    fun he ↦ h ((mk_eq_mk_iff_of_apply_ne_zero v.2 w.2 hi).mpr he)
+  filter_upwards [hc.eventually_ne hi,
+    (h₀.ne_iff_eventually_ne hf).mp hne] with z hz hzz
+  exact fun he ↦ hzz ((mk_eq_mk_iff_of_apply_ne_zero z.1.2 z.2.2 hz).mp he)
+
+end Projectivization
 
 section MatrixProdAction
 
@@ -116,6 +179,42 @@ lemma equivProjectivization_symm_apply_mk (v : Fin 2 → K) (h : v ≠ 0) :
   simp [equivProjectivization]
 
 end DivisionRing
+
+section NormedDivisionRing
+
+open Set Filter Topology Bornology
+
+variable (K : Type*) [NormedDivisionRing K] [DecidableEq K] [ProperSpace K]
+
+lemma continuous_equivProjectivization : Continuous (equivProjectivization K) := by
+  rw [OnePoint.continuous_iff, coclosedCompact_eq_cocompact,
+    ← Metric.cobounded_eq_cocompact]
+  refine ⟨?_, Projectivization.continuous_mk (by fun_prop) _⟩
+  have h : Continuous (fun x : K ↦ mk K ![1, x] (by simp)) :=
+    Projectivization.continuous_mk (by fun_prop) _
+  have ht := h.continuousAt.tendsto.comp (tendsto_inv₀_cobounded (α := K))
+  apply ht.congr'
+  filter_upwards [eventually_ne_cobounded (0 : K)] with x hx
+  simp only [Function.comp_apply, equivProjectivization_apply_coe]
+  rw [mk_eq_mk_iff']
+  refine ⟨x⁻¹, ?_⟩
+  ext i
+  fin_cases i <;> simp [hx]
+
+/-- The one-point compactification of a proper normed division ring is homeomorphic to its
+projective line, equipped with the quotient topology from nonzero vectors. -/
+def homeomorphProjectivization : OnePoint K ≃ₜ ℙ K (Fin 2 → K) :=
+  (continuous_equivProjectivization K).homeoOfEquivCompactToT2
+
+@[simp]
+lemma coe_homeomorphProjectivization :
+    ⇑(homeomorphProjectivization K) = equivProjectivization K := rfl
+
+@[simp]
+lemma coe_homeomorphProjectivization_symm :
+    ⇑(homeomorphProjectivization K).symm = (equivProjectivization K).symm := rfl
+
+end NormedDivisionRing
 
 section Field
 
